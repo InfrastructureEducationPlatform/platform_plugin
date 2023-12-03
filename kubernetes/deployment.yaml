@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blockinfrastructure-plugin
+  namespace: blockinfrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockinfrastructure-plugin
+  template:
+    metadata:
+      labels:
+        app: blockinfrastructure-plugin
+    spec:
+      containers:
+        - name: wein-konkuk
+          image: kangdroid/blockinfrastructure-plugin:main
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: backend-secrets-plugin
+          ports:
+            - containerPort: 8080
+              protocol: TCP
