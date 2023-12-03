@@ -8,12 +8,24 @@ class Block {
     var tags = ArrayList<String>()
     var type:String = ""
     var description:String = ""
-    var advancedMeta:String = ""
-    var virtualMachineFeatures:Features = Features("low", "ubuntu", "korea")
-
-    inner class Features(s: String, s1: String, s2: String) {
-        var tier:String = ""
-        var osType:String = ""
-        var region:String = ""
-    }
+    var advancedMeta:Any = ""
+    var features:Any = ""
 }
+data class VirtualMachineFeatures (
+    var tier:String = "",
+    var osType:String = "",
+    var region:String = ""
+)
+data class WebServerFeatures (
+    var tier:String = "",
+    var region:String = "",
+    var containerMetadata:ContainerMetadata
+)
+data class ContainerMetadata (
+    var imageTags:String = "",
+    var registerUrl:String = ""
+)
+data class DatabaseFeatures (
+    var tier:String = "",
+    var region:String = ""
+)

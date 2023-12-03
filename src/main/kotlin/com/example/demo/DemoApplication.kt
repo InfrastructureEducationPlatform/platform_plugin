@@ -8,17 +8,26 @@ import aws.sdk.kotlin.services.elasticbeanstalk.model.ConfigurationOptionSetting
 import aws.sdk.kotlin.services.elasticbeanstalk.model.CreateApplicationRequest
 import aws.sdk.kotlin.services.elasticbeanstalk.model.CreateEnvironmentRequest
 import aws.sdk.kotlin.services.elasticbeanstalk.model.DeleteApplicationRequest
+import aws.sdk.kotlin.services.rds.RdsClient
+import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
+import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @SpringBootApplication
 @RestController
 class SpringBootTutorialApplication {
-	@GetMapping("/deploymentSketch")
-	suspend fun deploymentSketch(sketch: RequestSketch):ResponseSketch {
+	@PostMapping("/deploymentSketch")
+	suspend fun deploymentSketch(@RequestBody sketch: RequestSketch):ResponseSketch {
+		for (i in sketch.blockList) {
+			when(i.type) {
+				"virtualMachine"-> createEC2Instance(i.name, "ami-03d390062ea11f660")
+				"webServer" -> createEBEnvironment("test_env", i.name)
+				"database" -> createDatabaseInstance("test-db", i.name, "choish20", "testtest")
+			}
+		}
+
 		var responseSketch:ResponseSketch = ResponseSketch()
 		return responseSketch
 	}
@@ -135,10 +144,46 @@ class SpringBootTutorialApplication {
 		}
 	}
 
-	@GetMapping("/hello")
-	fun sayHello(@RequestParam name: String?): String {
-		return String.format("Hello %s!", name)
+	@GetMapping("/createDB")
+	suspend fun createDatabaseInstance(
+		dbInstanceIdentifierVal: String?,
+		dbNamedbVal: String?,
+		masterUsernameVal: String?,
+		masterUserPasswordVal: String?
+	) {
+		val instanceRequest = CreateDbInstanceRequest {
+			dbInstanceIdentifier = dbInstanceIdentifierVal
+			allocatedStorage = 20
+			dbName = dbNamedbVal
+			engine = "postgres"
+			dbInstanceClass = "db.t3.micro"
+			engineVersion = "15.4"
+			storageType = "standard"
+			masterUsername = masterUsernameVal
+			masterUserPassword = masterUserPasswordVal
+		}
+
+		RdsClient { region = "us-west-2" }.use { rdsClient ->
+			val response = rdsClient.createDbInstance(instanceRequest)
+			print("The status is ${response.dbInstance?.dbInstanceStatus}")
+		}
 	}
+
+	@GetMapping("/deleteDB")
+	suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?) {
+
+		val deleteDbInstanceRequest = DeleteDbInstanceRequest {
+			dbInstanceIdentifier = dbInstanceIdentifierVal
+			deleteAutomatedBackups = true
+			skipFinalSnapshot = true
+		}
+
+		RdsClient { region = "us-west-2" }.use { rdsClient ->
+			val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
+			print("The status of the database is ${response.dbInstance?.dbInstanceStatus}")
+		}
+	}
+
 	companion object {
 		@JvmStatic
 		fun main(args: Array<String>) {
