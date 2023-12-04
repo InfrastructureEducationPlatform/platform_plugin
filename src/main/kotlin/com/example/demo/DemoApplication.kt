@@ -23,7 +23,7 @@ class SpringBootTutorialApplication {
 		for (i in sketch.blockList) {
 			when(i.type) {
 				"virtualMachine"-> createEC2Instance(i.name, "ami-03d390062ea11f660")
-				"webServer" -> createEBEnvironment("test_env", i.name)
+				"webServer" -> createEBInstance(i.name)
 				"database" -> createDatabaseInstance("test-db", i.name, "choish20", "testtest")
 			}
 		}
@@ -90,7 +90,7 @@ class SpringBootTutorialApplication {
 	}
 
 	@GetMapping("/createEB")
-	suspend fun createApp(@RequestParam appName: String?): String {
+	suspend fun createEBInstance(@RequestParam appName: String?): String {
 
 		val applicationRequest = CreateApplicationRequest {
 			description = "An AWS Elastic Beanstalk app created using the AWS SDK for Kotlin"
@@ -102,6 +102,7 @@ class SpringBootTutorialApplication {
 			val applicationResponse = beanstalkClient.createApplication(applicationRequest)
 			tableArn = applicationResponse.application?.applicationArn.toString()
 		}
+		createEBEnvironment("testEnv", appName)
 		return tableArn
 	}
 
