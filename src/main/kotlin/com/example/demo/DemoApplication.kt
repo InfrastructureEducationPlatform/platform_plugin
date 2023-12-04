@@ -117,7 +117,7 @@ class SpringBootTutorialApplication {
 		val applicationRequest = CreateEnvironmentRequest {
 			description = "An AWS Elastic Beanstalk environment created using the AWS SDK for Kotlin"
 			environmentName = envName
-			solutionStackName = "64bit Amazon Linux 2 v3.2.12 running Corretto 11"
+			solutionStackName = "64bit Amazon Linux 2023 v4.1.1 running Corretto 17"
 			applicationName = appName
 			optionSettings = listOf(setting1)
 		}
