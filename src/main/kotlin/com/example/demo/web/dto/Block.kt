@@ -1,4 +1,4 @@
-package com.example.demo
+package com.example.demo.web.dto
 
 class Block {
     var x:Int = 0
@@ -19,7 +19,7 @@ data class VirtualMachineFeatures (
 data class WebServerFeatures (
     var tier:String = "",
     var region:String = "",
-    var containerMetadata:ContainerMetadata
+    var containerMetadata: ContainerMetadata
 )
 data class ContainerMetadata (
     var imageTags:String = "",

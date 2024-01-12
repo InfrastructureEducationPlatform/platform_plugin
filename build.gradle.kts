@@ -33,6 +33,8 @@ dependencies {
 	implementation("aws.sdk.kotlin:ec2:1.0.8")
 	implementation("aws.sdk.kotlin:elasticbeanstalk:1.0.8")
 	implementation("aws.sdk.kotlin:secretsmanager:1.0.8")
+	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("io.projectreactor:reactor-test")
 }
