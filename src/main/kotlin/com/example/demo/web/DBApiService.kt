@@ -3,8 +3,7 @@ package com.example.demo.web
 import aws.sdk.kotlin.services.rds.RdsClient
 import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
-import com.example.demo.web.dto.Block
-import com.example.demo.web.dto.DatabaseFeatures
+import com.example.demo.web.dto.*
 import org.springframework.stereotype.Service
 import org.springframework.web.bind.annotation.GetMapping
 
@@ -15,7 +14,7 @@ public class DBApiService {
         block: Block,
         masterUsernameVal: String?,
         masterUserPasswordVal: String?
-    ) {
+    ): BlockOutput {
         val instanceRequest = CreateDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
             allocatedStorage = 20
@@ -28,14 +27,20 @@ public class DBApiService {
             masterUserPassword = masterUserPasswordVal
         }
 
-        RdsClient { region = (block.features as LinkedHashMap<*, *>)["region"].toString() }.use { rdsClient ->
+        var publicFQDN:String
+        val inputRegion:String = (block.features as LinkedHashMap<*, *>)["region"].toString()
+        RdsClient { region = inputRegion }.use { rdsClient ->
             val response = rdsClient.createDbInstance(instanceRequest)
             print("The status is ${response.dbInstance?.dbInstanceStatus}")
+            publicFQDN = response.dbInstance?.endpoint.toString() + response.dbInstance?.dbInstancePort.toString()
         }
+        val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal!!, masterUserPasswordVal!!)
+
+        return BlockOutput(block.id, block.type, inputRegion, rdsOutput)
     }
 
     @GetMapping("/deleteDB")
-    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?) {
+    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?) {
 
         val deleteDbInstanceRequest = DeleteDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -43,7 +48,7 @@ public class DBApiService {
             skipFinalSnapshot = true
         }
 
-        RdsClient { region = "us-west-2" }.use { rdsClient ->
+        RdsClient { region = inputRegion }.use { rdsClient ->
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
             print("The status of the database is ${response.dbInstance?.dbInstanceStatus}")
         }
