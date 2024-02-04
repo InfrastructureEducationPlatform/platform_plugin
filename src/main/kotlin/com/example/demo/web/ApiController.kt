@@ -1,8 +1,8 @@
 package com.example.demo.web
 
 import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.RequestSketch
-import com.example.demo.web.dto.ResponseSketch
+import com.example.demo.web.dto.RequestSketchDto
+import com.example.demo.web.dto.ResponseSketchDto
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
@@ -14,18 +14,17 @@ class ApiController(
     private val dbApiService: DBApiService
 ) {
     @PostMapping("/deploymentSketch")
-    suspend fun deploymentSketch(@RequestBody sketch: RequestSketch): ResponseSketch {
+    suspend fun deploymentSketch(@RequestBody sketch: RequestSketchDto): ResponseSketchDto {
         val blockOutputList = ArrayList<BlockOutput>()
         for (block in sketch.blockList) {
             var blockOutput: BlockOutput? = null
             when (block.type) {
                 "virtualMachine" -> blockOutput = vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
                 "webServer" -> blockOutput = webApiService.createEBInstance(block)
-                "database" -> blockOutput =
-                    dbApiService.createDatabaseInstance("test-db", block)
+                "database" -> blockOutput = dbApiService.createDatabaseInstance("test-db", block)
             }
             blockOutput?.let { blockOutputList.add(it) }
         }
-        return ResponseSketch(sketch.sketchId, sketch.blockList, blockOutputList)
+        return ResponseSketchDto(sketch.sketchId, sketch.blockList, blockOutputList)
     }
 }

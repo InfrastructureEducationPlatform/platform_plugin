@@ -3,6 +3,8 @@ package com.example.demo.web
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
+import aws.smithy.kotlin.runtime.retries.getOrThrow
+import aws.smithy.kotlin.runtime.retries.toResult
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
@@ -11,7 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 
 @Service
-public class VMApiService {
+class VMApiService {
     suspend fun createEC2Instance(@RequestParam block: Block, @RequestParam amiId: String): BlockOutput? {
         val request = RunInstancesRequest {
             imageId = amiId
@@ -19,12 +21,10 @@ public class VMApiService {
             maxCount = 1
             minCount = 1
         }
-        val inputRegion:String = (block.features as LinkedHashMap<*, *>)["region"].toString()
+        val inputRegion:String? = block.virtualMachineFeatures?.region
         Ec2Client { region = inputRegion }.use { ec2 ->
             val response = ec2.runInstances(request)
             val instanceId = response.instances?.get(0)?.instanceId
-            val ipAddress = response.instances?.get(0)?.publicIpAddress
-            val sshPrivateKey = response.instances?.get(0)?.keyName
             val tag = Tag {
                 key = "Name"
                 value = block.name
@@ -35,12 +35,15 @@ public class VMApiService {
                 tags = listOf(tag)
             }
             ec2.createTags(requestTags)
-            ec2.waitUntilInstanceRunning { // suspend call
+            val waitResponse = ec2.waitUntilInstanceRunning { // suspend call
                 instanceIds = listOf(instanceId.toString())
             }
+
+            val ipAddress = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.publicIpAddress
+            val sshPrivateKey = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.keyName
             println("Successfully started EC2 Instance $instanceId based on AMI $amiId")
             val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-            return BlockOutput(block.id, block.type, inputRegion, vmOutput)
+            return BlockOutput(block.id, block.type, inputRegion!!, vmOutput, null, null)
         }
     }
 

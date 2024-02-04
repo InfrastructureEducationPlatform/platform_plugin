@@ -10,8 +10,9 @@ import org.springframework.stereotype.Service
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 
+
 @Service
-public class WebApiService {
+class WebApiService {
     suspend fun createEBInstance(@RequestParam block: Block): BlockOutput {
 
         val applicationRequest = CreateApplicationRequest {
@@ -20,15 +21,15 @@ public class WebApiService {
         }
 
         var tableArn: String
-        val inputRegion = (block.features as LinkedHashMap<*, *>)["region"].toString()
+        val inputRegion = block.webServerFeatures?.region
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             val applicationResponse = beanstalkClient.createApplication(applicationRequest)
             tableArn = applicationResponse.application?.applicationArn.toString()
         }
-        val endpoint:String = createEBEnvironment("testEnv", block.name, inputRegion)
+        val endpoint:String = createEBEnvironment("test", block.name, inputRegion)
         val ebOutput = WebServerOutput(block.name, endpoint)
 
-        return BlockOutput(block.id, block.type, inputRegion, ebOutput)
+        return BlockOutput(block.id, block.type, inputRegion!!, null, ebOutput, null)
     }
 
     suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?): String {
@@ -48,38 +49,37 @@ public class WebApiService {
         }
 
         var envArn: String
-        var envEndpoint: String
 
 
 
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             val applicationResponse = beanstalkClient.createEnvironment(applicationRequest)
-            envEndpoint = applicationResponse.endpointUrl.toString()
             envArn = applicationResponse.environmentArn.toString()
         }
-        waitForInstanceReady(envName, inputRegion)
 
-        return envEndpoint
+        return waitForInstanceReady(envName, inputRegion)
     }
 
-    suspend fun waitForInstanceReady(envName: String?, inputRegion: String?) {
+    suspend fun waitForInstanceReady(envName: String?, inputRegion: String?): String {
         val sleepTime: Long = 20
         var instanceReady = false
-        var instanceReadyStr = ""
+        var instanceReadyStr: String
 
         val instanceRequest = DescribeEnvironmentsRequest {
             environmentNames = listOf(envName.toString())
         }
 
+        var envEndpoint = ""
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             while (!instanceReady) {
                 val response = beanstalkClient.describeEnvironments(instanceRequest)
                 val instanceList = response.environments
                 if (instanceList != null) {
                     for (instance in instanceList) {
-                        instanceReadyStr = instance.status.toString()
-                        if (instanceReadyStr.contains("Ready")) {
+                        instanceReadyStr = instance.healthStatus.toString()
+                        if (instanceReadyStr.contains("Terminated")) {
                             instanceReady = true
+                            envEndpoint = instance.endpointUrl.toString()
                         } else {
                             println("...$instanceReadyStr")
                             delay(sleepTime * 1000)
@@ -88,7 +88,7 @@ public class WebApiService {
                 }
             }
         }
-
+        return envEndpoint
     }
 
     @GetMapping("/deleteEB")
