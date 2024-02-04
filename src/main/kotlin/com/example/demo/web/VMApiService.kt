@@ -7,7 +7,8 @@ import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestParam
 
 @Service
 public class VMApiService {
@@ -34,6 +35,9 @@ public class VMApiService {
                 tags = listOf(tag)
             }
             ec2.createTags(requestTags)
+            ec2.waitUntilInstanceRunning { // suspend call
+                instanceIds = listOf(instanceId.toString())
+            }
             println("Successfully started EC2 Instance $instanceId based on AMI $amiId")
             val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
             return BlockOutput(block.id, block.type, inputRegion, vmOutput)

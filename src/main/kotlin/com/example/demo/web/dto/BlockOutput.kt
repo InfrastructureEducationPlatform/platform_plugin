@@ -8,7 +8,7 @@ class BlockOutput(
 )
 
 data class VirtualMachineOutput (
-    var instanceID:String = "",
+    var instanceId:String = "",
     var ipAddress:String = "",
     var sshPrivateKey:String = ""
 )

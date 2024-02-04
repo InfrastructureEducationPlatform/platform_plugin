@@ -17,15 +17,15 @@ class ApiController(
     suspend fun deploymentSketch(@RequestBody sketch: RequestSketch): ResponseSketch {
         val blockOutputList = ArrayList<BlockOutput>()
         for (block in sketch.blockList) {
-            var blockOutput:BlockOutput? = null
+            var blockOutput: BlockOutput? = null
             when (block.type) {
                 "virtualMachine" -> blockOutput = vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
                 "webServer" -> blockOutput = webApiService.createEBInstance(block)
-                "database" -> blockOutput = dbApiService.createDatabaseInstance("test-db", block, "choish20", "testtest")
+                "database" -> blockOutput =
+                    dbApiService.createDatabaseInstance("test-db", block)
             }
             blockOutput?.let { blockOutputList.add(it) }
         }
-        var responseSketch:ResponseSketch = ResponseSketch(sketch.sketchId, sketch.blockList, blockOutputList)
-        return responseSketch
+        return ResponseSketch(sketch.sketchId, sketch.blockList, blockOutputList)
     }
 }
