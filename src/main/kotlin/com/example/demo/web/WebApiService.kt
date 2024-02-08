@@ -29,7 +29,7 @@ class WebApiService {
         val endpoint:String = createEBEnvironment("test", block.name, inputRegion)
         val ebOutput = WebServerOutput(block.name, endpoint)
 
-        return BlockOutput(block.id, block.type, inputRegion!!, null, ebOutput, null)
+        return BlockOutput(block.id, block.type, inputRegion!!, null, ebOutput, null, "OK")
     }
 
     suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?): String {

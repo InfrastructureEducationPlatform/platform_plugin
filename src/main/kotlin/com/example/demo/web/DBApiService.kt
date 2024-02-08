@@ -39,7 +39,7 @@ class DBApiService {
         val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
 
         val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal!!, masterUserPasswordVal!!)
-        return BlockOutput(block.id, block.type, inputRegion!!, null, null, rdsOutput)
+        return BlockOutput(block.id, block.type, inputRegion!!, null, null, rdsOutput, "OK")
     }
 
     suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?): String {

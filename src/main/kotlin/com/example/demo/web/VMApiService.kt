@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam
 
 @Service
 class VMApiService {
-    suspend fun createEC2Instance(@RequestParam block: Block, @RequestParam amiId: String): BlockOutput? {
+    suspend fun createEC2Instance(@RequestParam block: Block, @RequestParam amiId: String): BlockOutput {
         val request = RunInstancesRequest {
             imageId = amiId
             instanceType = InstanceType.T1Micro
@@ -43,7 +43,7 @@ class VMApiService {
             val sshPrivateKey = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.keyName
             println("Successfully started EC2 Instance $instanceId based on AMI $amiId")
             val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-            return BlockOutput(block.id, block.type, inputRegion!!, vmOutput, null, null)
+            return BlockOutput(block.id, block.type, inputRegion!!, vmOutput, null, null, "OK")
         }
     }
 

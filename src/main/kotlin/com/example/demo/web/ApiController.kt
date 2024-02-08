@@ -17,13 +17,14 @@ class ApiController(
     suspend fun deploymentSketch(@RequestBody sketch: RequestSketchDto): ResponseSketchDto {
         val blockOutputList = ArrayList<BlockOutput>()
         for (block in sketch.blockList) {
-            var blockOutput: BlockOutput? = null
-            when (block.type) {
-                "virtualMachine" -> blockOutput = vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
-                "webServer" -> blockOutput = webApiService.createEBInstance(block)
-                "database" -> blockOutput = dbApiService.createDatabaseInstance("test-db", block)
+            val blockOutput:BlockOutput = when (block.type) {
+                "virtualMachine" -> vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
+                "webServer" -> webApiService.createEBInstance(block)
+                "database" -> dbApiService.createDatabaseInstance("test-db", block)
+                else -> { BlockOutput(block.id, block.type, "",
+                    null, null, null, "ERROR","Block type error") }
             }
-            blockOutput?.let { blockOutputList.add(it) }
+            blockOutputList.add(blockOutput)
         }
         return ResponseSketchDto(sketch.sketchId, sketch.blockList, blockOutputList)
     }
