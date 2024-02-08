@@ -8,7 +8,7 @@ data class Block(
     var tags: List<String>,
     var type: String,
     var description: String,
-    var advancedMeta: Any,
+    var advancedMeta: LinkedHashMap<String, String>?,
     var virtualMachineFeatures: VirtualMachineFeatures?,
     var webServerFeatures: WebServerFeatures?,
     var databaseFeatures: DatabaseFeatures?
