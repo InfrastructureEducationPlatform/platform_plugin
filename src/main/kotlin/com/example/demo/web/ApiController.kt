@@ -22,7 +22,7 @@ class ApiController(
                 "webServer" -> webApiService.createEBInstance(block)
                 "database" -> dbApiService.createDatabaseInstance("test-db", block)
                 else -> { BlockOutput(block.id, block.type, "",
-                    null, null, null, "ERROR","Block type error") }
+                    null, null, null, "FAIL","Block type error") }
             }
             blockOutputList.add(blockOutput)
         }
