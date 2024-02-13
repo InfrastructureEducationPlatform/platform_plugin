@@ -12,17 +12,25 @@ import org.springframework.stereotype.Service
 @Service
 class DBApiService {
     val log = KotlinLogging.logger {}
+    suspend fun isValidDbBlock(block: Block) {
+        if(block.databaseFeatures == null) {
+            throw CustomException(ErrorCode.INVALID_DB_FEATURES)
+        }
+        val dbFeatures = block.databaseFeatures!!
+        if(dbFeatures.region == "" || dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
+            throw CustomException(ErrorCode.INVALID_DB_FEATURES)
+        }
+    }
     suspend fun createDatabaseInstance(
         dbInstanceIdentifierVal: String?,
         block: Block
     ): BlockOutput {
-        if(block.databaseFeatures == null) return BlockOutput(block.id, block.type, "",
-            null, null, null,
-            "FAIL", "DatabaseFeatures null")
 
-        val inputRegion = block.databaseFeatures!!.region
-        val masterUsernameVal = block.databaseFeatures!!.masterUsername
-        val masterUserPasswordVal = block.databaseFeatures!!.masterUserPassword
+        val dbFeatures = block.databaseFeatures!!
+        val inputRegion = dbFeatures.region
+        val masterUsernameVal = dbFeatures.masterUsername
+        val masterUserPasswordVal = dbFeatures.masterUserPassword
+
         val instanceRequest = CreateDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
             allocatedStorage = 20
@@ -43,8 +51,10 @@ class DBApiService {
         }
         val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
 
-        val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal!!, masterUserPasswordVal!!)
-        return BlockOutput(block.id, block.type, inputRegion!!, null, null, rdsOutput, "OK")
+        val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
+            masterUserPasswordVal
+        )
+        return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
     }
 
     suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?): String {

@@ -6,9 +6,7 @@ data class BlockOutput(
     val region: String,
     val virtualMachineOutput: VirtualMachineOutput?,
     val webServerOutput: WebServerOutput?,
-    val databaseOutput: DatabaseOutput?,
-    val deploymentStatus: String,
-    val errorDescription: String = ""
+    val databaseOutput: DatabaseOutput?
 )
 
 data class VirtualMachineOutput (

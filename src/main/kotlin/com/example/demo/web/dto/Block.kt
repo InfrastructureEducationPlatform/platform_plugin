@@ -24,8 +24,8 @@ data class WebServerFeatures (
     var containerMetadata: ContainerMetadata
 )
 data class ContainerMetadata (
-    var imageTags:String?,
-    var registryUrl:String?
+    var imageTags:String,
+    var registryUrl:String
 )
 data class DatabaseFeatures (
     var tier:String,

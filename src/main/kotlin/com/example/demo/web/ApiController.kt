@@ -16,13 +16,24 @@ class ApiController(
     @PostMapping("/deploymentSketch")
     suspend fun deploymentSketch(@RequestBody sketch: RequestSketchDto): ResponseSketchDto {
         val blockOutputList = ArrayList<BlockOutput>()
+
+        //Service 가능 여부 체크
+        for (block in sketch.blockList) {
+            when (block.type) {
+                "virtualMachine" -> vmApiService.isValidVmBlock(block)
+                "webServer" -> webApiService.isValidWebBlock(block)
+                "database" -> dbApiService.isValidDbBlock(block)
+                else -> { throw CustomException(ErrorCode.INVALID_BLOCK_TYPE) }
+            }
+        }
+
+        //Service 배포
         for (block in sketch.blockList) {
             val blockOutput:BlockOutput = when (block.type) {
                 "virtualMachine" -> vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
                 "webServer" -> webApiService.createEBInstance(block)
                 "database" -> dbApiService.createDatabaseInstance("test-db", block)
-                else -> { BlockOutput(block.id, block.type, "",
-                    null, null, null, "FAIL","Block type error") }
+                else -> { throw CustomException(ErrorCode.INVALID_BLOCK_TYPE) }
             }
             blockOutputList.add(blockOutput)
         }

@@ -9,23 +9,29 @@ import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
 import mu.KotlinLogging
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.RequestParam
 
 @Service
 class VMApiService {
     val log = KotlinLogging.logger {}
-    suspend fun createEC2Instance(@RequestParam block: Block, @RequestParam amiId: String): BlockOutput {
-        if(block.virtualMachineFeatures == null) return BlockOutput(block.id, block.type, "",
-            null, null, null,
-            "FAIL", "VirtualMachineFeatures null")
+    suspend fun isValidVmBlock(block: Block) {
+        if(block.virtualMachineFeatures == null) {
+            throw CustomException(ErrorCode.INVALID_VM_FEATURES)
+        }
+        val vmFeatures = block.virtualMachineFeatures!!
 
+        if(vmFeatures.region == "" || vmFeatures.osType == "" || vmFeatures.tier == "") {
+            throw CustomException(ErrorCode.INVALID_VM_FEATURES)
+        }
+    }
+    suspend fun createEC2Instance(block: Block, amiId: String): BlockOutput {
         val request = RunInstancesRequest {
             imageId = amiId
             instanceType = InstanceType.T1Micro
             maxCount = 1
             minCount = 1
         }
-        val inputRegion:String? = block.virtualMachineFeatures?.region
+        val inputRegion:String = block.virtualMachineFeatures!!.region
+
         Ec2Client { region = inputRegion }.use { ec2 ->
             val response = ec2.runInstances(request)
             val instanceId = response.instances?.get(0)?.instanceId
@@ -48,7 +54,7 @@ class VMApiService {
 
             log.info("Successfully started EC2 Instance $instanceId based on AMI $amiId")
             val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-            return BlockOutput(block.id, block.type, inputRegion!!, vmOutput, null, null, "OK")
+            return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
         }
     }
 
