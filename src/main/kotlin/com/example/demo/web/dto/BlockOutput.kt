@@ -1,29 +1,29 @@
 package com.example.demo.web.dto
 
 data class BlockOutput(
-    var id: String,
-    var type: String,
-    var region: String,
-    var virtualMachineOutput: VirtualMachineOutput?,
-    var webServerOutput: WebServerOutput?,
-    var databaseOutput: DatabaseOutput?,
+    val id: String,
+    val type: String,
+    val region: String,
+    val virtualMachineOutput: VirtualMachineOutput?,
+    val webServerOutput: WebServerOutput?,
+    val databaseOutput: DatabaseOutput?
 )
 
 data class VirtualMachineOutput (
-    var instanceId:String,
-    var ipAddress:String,
-    var sshPrivateKey:String
+    val instanceId:String,
+    val ipAddress:String,
+    val sshPrivateKey:String
 )
 
 
 data class WebServerOutput (
-    var appName:String,
-    var publicFQDN:String
+    val appName:String,
+    val publicFQDN:String
 )
 
 data class DatabaseOutput (
-    var dbInstanceIdentifierVal:String,
-    var publicFQDN:String,
-    var databaseUsername:String,
-    var databasePassword:String
+    val dbInstanceIdentifierVal:String,
+    val publicFQDN:String,
+    val databaseUsername:String,
+    val databasePassword:String
 )

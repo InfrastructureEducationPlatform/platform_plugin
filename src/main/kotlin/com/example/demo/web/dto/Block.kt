@@ -8,7 +8,7 @@ data class Block(
     var tags: List<String>,
     var type: String,
     var description: String,
-    var advancedMeta: Any,
+    var advancedMeta: LinkedHashMap<String, String>?,
     var virtualMachineFeatures: VirtualMachineFeatures?,
     var webServerFeatures: WebServerFeatures?,
     var databaseFeatures: DatabaseFeatures?
@@ -24,8 +24,8 @@ data class WebServerFeatures (
     var containerMetadata: ContainerMetadata
 )
 data class ContainerMetadata (
-    var imageTags:String?,
-    var registryUrl:String?
+    var imageTags:String,
+    var registryUrl:String
 )
 data class DatabaseFeatures (
     var tier:String,

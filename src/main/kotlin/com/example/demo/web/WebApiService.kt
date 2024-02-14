@@ -6,14 +6,23 @@ import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.WebServerOutput
 import kotlinx.coroutines.delay
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestParam
 
 
 @Service
 class WebApiService {
-    suspend fun createEBInstance(@RequestParam block: Block): BlockOutput {
+    val log = KotlinLogging.logger {}
+    suspend fun isValidWebBlock(block: Block) {
+        if(block.webServerFeatures == null) {
+            throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
+        }
+        val webFeatures = block.webServerFeatures!!
+        if(webFeatures.region == "" || webFeatures.tier == "" || webFeatures.containerMetadata.imageTags == "" || webFeatures.containerMetadata.registryUrl == "") {
+            throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
+        }
+    }
+    suspend fun createEBInstance(block: Block): BlockOutput {
 
         val applicationRequest = CreateApplicationRequest {
             description = "An AWS Elastic Beanstalk app created using the AWS SDK for Kotlin"
@@ -21,7 +30,7 @@ class WebApiService {
         }
 
         var tableArn: String
-        val inputRegion = block.webServerFeatures?.region
+        val inputRegion = block.webServerFeatures!!.region
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             val applicationResponse = beanstalkClient.createApplication(applicationRequest)
             tableArn = applicationResponse.application?.applicationArn.toString()
@@ -29,7 +38,7 @@ class WebApiService {
         val endpoint:String = createEBEnvironment("test", block.name, inputRegion)
         val ebOutput = WebServerOutput(block.name, endpoint)
 
-        return BlockOutput(block.id, block.type, inputRegion!!, null, ebOutput, null)
+        return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
     }
 
     suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?): String {
@@ -81,7 +90,7 @@ class WebApiService {
                             instanceReady = true
                             envEndpoint = instance.endpointUrl.toString()
                         } else {
-                            println("...$instanceReadyStr")
+                            log.info("...$instanceReadyStr")
                             delay(sleepTime * 1000)
                         }
                     }
@@ -91,7 +100,6 @@ class WebApiService {
         return envEndpoint
     }
 
-    @GetMapping("/deleteEB")
     suspend fun deleteApp(appName: String?, inputRegion: String?) {
 
         val applicationRequest = DeleteApplicationRequest {
@@ -101,7 +109,7 @@ class WebApiService {
 
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             beanstalkClient.deleteApplication(applicationRequest)
-            println("The Elastic Beanstalk application was successfully deleted!")
+            log.info("The Elastic Beanstalk application was successfully deleted!")
         }
     }
 }

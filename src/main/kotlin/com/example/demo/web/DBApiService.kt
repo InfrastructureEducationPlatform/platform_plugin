@@ -5,19 +5,32 @@ import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
 import com.example.demo.web.dto.*
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
-import org.springframework.web.bind.annotation.GetMapping
 
 @Service
 class DBApiService {
+    val log = KotlinLogging.logger {}
+    suspend fun isValidDbBlock(block: Block) {
+        if(block.databaseFeatures == null) {
+            throw CustomException(ErrorCode.INVALID_DB_FEATURES)
+        }
+        val dbFeatures = block.databaseFeatures!!
+        if(dbFeatures.region == "" || dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
+            throw CustomException(ErrorCode.INVALID_DB_FEATURES)
+        }
+    }
     suspend fun createDatabaseInstance(
         dbInstanceIdentifierVal: String?,
         block: Block
     ): BlockOutput {
-        val inputRegion = block.databaseFeatures?.region
-        val masterUsernameVal = block.databaseFeatures?.masterUsername
-        val masterUserPasswordVal = block.databaseFeatures?.masterUserPassword
+
+        val dbFeatures = block.databaseFeatures!!
+        val inputRegion = dbFeatures.region
+        val masterUsernameVal = dbFeatures.masterUsername
+        val masterUserPasswordVal = dbFeatures.masterUserPassword
+
         val instanceRequest = CreateDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
             allocatedStorage = 20
@@ -33,20 +46,22 @@ class DBApiService {
 
         RdsClient { region = inputRegion }.use { rdsClient ->
             val response = rdsClient.createDbInstance(instanceRequest)
-            print("The status is ${response.dbInstance?.dbInstanceStatus}")
+            log.info("The status is ${response.dbInstance?.dbInstanceStatus}")
 
         }
         val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
 
-        val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal!!, masterUserPasswordVal!!)
-        return BlockOutput(block.id, block.type, inputRegion!!, null, null, rdsOutput)
+        val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
+            masterUserPasswordVal
+        )
+        return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
     }
 
     suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?): String {
         val sleepTime: Long = 20
         var instanceReady = false
         var instanceReadyStr: String
-        println("Waiting for instance to become available.")
+        log.info("Waiting for instance to become available.")
 
         val instanceRequest = DescribeDbInstancesRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -64,18 +79,17 @@ class DBApiService {
                             instanceReady = true
                             publicFQDN = instance.endpoint?.address + instance.endpoint?.port
                         } else {
-                            println("...$instanceReadyStr")
+                            log.info("...$instanceReadyStr")
                             delay(sleepTime * 1000)
                         }
                     }
                 }
             }
-            println("Database instance is available!")
+            log.info("Database instance is available!")
         }
         return publicFQDN
     }
 
-    @GetMapping("/deleteDB")
     suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?) {
 
         val deleteDbInstanceRequest = DeleteDbInstanceRequest {
@@ -86,7 +100,7 @@ class DBApiService {
 
         RdsClient { region = inputRegion }.use { rdsClient ->
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
-            print("The status of the database is ${response.dbInstance?.dbInstanceStatus}")
+            log.info("The status of the database is ${response.dbInstance?.dbInstanceStatus}")
         }
     }
 
