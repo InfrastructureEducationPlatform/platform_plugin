@@ -25,7 +25,7 @@ dependencies {
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.cloud:spring-cloud-starter-aws:2.0.1.RELEASE")
-	implementation("io.github.microutils:kotlin-logging:3.0.5")
+	implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")
 	implementation("javax.xml.bind:jaxb-api:2.3.1")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.11")

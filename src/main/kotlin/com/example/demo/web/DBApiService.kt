@@ -5,8 +5,8 @@ import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
 import com.example.demo.web.dto.*
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
-import mu.KotlinLogging
 import org.springframework.stereotype.Service
 
 @Service

@@ -6,7 +6,7 @@ import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.WebServerOutput
 import kotlinx.coroutines.delay
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 
 

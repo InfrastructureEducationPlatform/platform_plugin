@@ -7,7 +7,7 @@ import aws.smithy.kotlin.runtime.retries.getOrThrow
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 
 @Service
