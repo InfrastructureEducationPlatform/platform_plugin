@@ -54,9 +54,11 @@ class WebApiService {
         } catch (ex: ElasticBeanstalkException) {
             val awsRequestId = ex.sdkErrorMetadata.requestId
             val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
+            val errorMessage = ex.sdkErrorMetadata.errorMessage
 
             log.error { "requestId was: $awsRequestId" }
             log.error { "http status code was: ${httpResp?.status}" }
+            log.error { "error message was: $errorMessage" }
 
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
