@@ -1,9 +1,12 @@
 package com.example.demo.web
 
+import aws.sdk.kotlin.services.ec2.model.Ec2Exception
 import aws.sdk.kotlin.services.rds.RdsClient
 import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
+import aws.sdk.kotlin.services.rds.model.RdsException
+import aws.smithy.kotlin.runtime.http.response.HttpResponse
 import com.example.demo.web.dto.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
@@ -54,18 +57,26 @@ class DBApiService {
             masterUserPassword = masterUserPasswordVal
         }
 
+        try {
+            RdsClient { region = inputRegion }.use { rdsClient ->
+                val response = rdsClient.createDbInstance(instanceRequest)
+                log.info { "The status is ${response.dbInstance?.dbInstanceStatus}" }
 
-        RdsClient { region = inputRegion }.use { rdsClient ->
-            val response = rdsClient.createDbInstance(instanceRequest)
-            log.info("The status is ${response.dbInstance?.dbInstanceStatus}")
+            }
+            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
+            val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
+                masterUserPasswordVal
+            )
+            return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
+        } catch (ex: RdsException) {
+            val awsRequestId = ex.sdkErrorMetadata.requestId
+            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
 
+            log.error { "requestId was: $awsRequestId" }
+            log.error { "http status code was: ${httpResp?.status}" }
+
+            throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
-        val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
-
-        val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
-            masterUserPasswordVal
-        )
-        return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
     }
 
     suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?): String {

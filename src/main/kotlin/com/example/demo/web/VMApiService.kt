@@ -3,6 +3,7 @@ package com.example.demo.web
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
+import aws.smithy.kotlin.runtime.http.response.HttpResponse
 import aws.smithy.kotlin.runtime.retries.getOrThrow
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
@@ -32,30 +33,41 @@ class VMApiService {
         }
         val inputRegion:String = block.virtualMachineFeatures!!.region
 
-        Ec2Client { region = inputRegion }.use { ec2 ->
-            val response = ec2.runInstances(request)
-            val instanceId = response.instances?.get(0)?.instanceId
-            val tag = Tag {
-                key = "Name"
-                value = block.name
-            }
+        try {
+            Ec2Client { region = inputRegion }.use { ec2 ->
+                val response = ec2.runInstances(request)
+                val instanceId = response.instances?.get(0)?.instanceId
+                val tag = Tag {
+                    key = "Name"
+                    value = block.name
+                }
 
-            val requestTags = CreateTagsRequest {
-                resources = listOf(instanceId.toString())
-                tags = listOf(tag)
-            }
-            ec2.createTags(requestTags)
-            val waitResponse = ec2.waitUntilInstanceRunning { // suspend call
-                instanceIds = listOf(instanceId.toString())
-            }
+                val requestTags = CreateTagsRequest {
+                    resources = listOf(instanceId.toString())
+                    tags = listOf(tag)
+                }
+                ec2.createTags(requestTags)
+                val waitResponse = ec2.waitUntilInstanceRunning { // suspend call
+                    instanceIds = listOf(instanceId.toString())
+                }
 
-            val ipAddress = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.publicIpAddress
-            val sshPrivateKey = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.keyName
+                val ipAddress = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.publicIpAddress
+                val sshPrivateKey = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.keyName
 
-            log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
-            val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-            return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
+                log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
+                val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
+                return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
+            }
+        } catch (ex: Ec2Exception) {
+            val awsRequestId = ex.sdkErrorMetadata.requestId
+            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
+
+            log.error { "requestId was: $awsRequestId" }
+            log.error { "http status code was: ${httpResp?.status}" }
+
+            throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
+
     }
 
     suspend fun startInstanceSc(instanceId: String, inputRegion: String) {
