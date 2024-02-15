@@ -1,7 +1,9 @@
 package com.example.demo.web
 
+import aws.sdk.kotlin.services.ec2.model.Ec2Exception
 import aws.sdk.kotlin.services.elasticbeanstalk.ElasticBeanstalkClient
 import aws.sdk.kotlin.services.elasticbeanstalk.model.*
+import aws.smithy.kotlin.runtime.http.response.HttpResponse
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.WebServerOutput
@@ -21,6 +23,11 @@ class WebApiService {
         if(webFeatures.region == "" || webFeatures.tier == "" || webFeatures.containerMetadata.imageTags == "" || webFeatures.containerMetadata.registryUrl == "") {
             throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
         }
+
+        val regexObj = RegexObj()
+        if(!regexObj.verifyWebServerName(block.name)) {
+            throw CustomException(ErrorCode.INVALID_WEBSERVER_NAME)
+        }
     }
     suspend fun createEBInstance(block: Block): BlockOutput {
 
@@ -29,16 +36,31 @@ class WebApiService {
             applicationName = block.name
         }
 
-        var tableArn: String
-        val inputRegion = block.webServerFeatures!!.region
-        ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
-            val applicationResponse = beanstalkClient.createApplication(applicationRequest)
-            tableArn = applicationResponse.application?.applicationArn.toString()
-        }
-        val endpoint:String = createEBEnvironment("test", block.name, inputRegion)
-        val ebOutput = WebServerOutput(block.name, endpoint)
+        try {
+            var tableArn: String
+            val inputRegion = block.webServerFeatures!!.region
+            ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
+                val applicationResponse = beanstalkClient.createApplication(applicationRequest)
+                tableArn = applicationResponse.application?.applicationArn.toString()
+            }
+            val envName =
+                if(block.name.length < 36) block.name + "-env"
+                else block.name.substring(0 until 36) + "-env"
 
-        return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
+            val endpoint:String = createEBEnvironment(envName, block.name, inputRegion)
+            val ebOutput = WebServerOutput(block.name, endpoint)
+
+            return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
+        } catch (ex: ElasticBeanstalkException) {
+            val awsRequestId = ex.sdkErrorMetadata.requestId
+            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
+
+            log.error { "requestId was: $awsRequestId" }
+            log.error { "http status code was: ${httpResp?.status}" }
+
+            throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
+        }
+
     }
 
     suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?): String {
@@ -60,13 +82,23 @@ class WebApiService {
         var envArn: String
 
 
+        try {
+            ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
+                val applicationResponse = beanstalkClient.createEnvironment(applicationRequest)
+                envArn = applicationResponse.environmentArn.toString()
+            }
 
-        ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
-            val applicationResponse = beanstalkClient.createEnvironment(applicationRequest)
-            envArn = applicationResponse.environmentArn.toString()
+            return waitForInstanceReady(envName, inputRegion)
+        } catch (ex: ElasticBeanstalkException) {
+            val awsRequestId = ex.sdkErrorMetadata.requestId
+            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
+
+            log.error { "requestId was: $awsRequestId" }
+            log.error { "http status code was: ${httpResp?.status}" }
+
+            throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
 
-        return waitForInstanceReady(envName, inputRegion)
     }
 
     suspend fun waitForInstanceReady(envName: String?, inputRegion: String?): String {
@@ -90,7 +122,7 @@ class WebApiService {
                             instanceReady = true
                             envEndpoint = instance.endpointUrl.toString()
                         } else {
-                            log.info("...$instanceReadyStr")
+                            log.info { "...$instanceReadyStr" }
                             delay(sleepTime * 1000)
                         }
                     }
@@ -109,7 +141,7 @@ class WebApiService {
 
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             beanstalkClient.deleteApplication(applicationRequest)
-            log.info("The Elastic Beanstalk application was successfully deleted!")
+            log.info { "The Elastic Beanstalk application was successfully deleted!" }
         }
     }
 }
