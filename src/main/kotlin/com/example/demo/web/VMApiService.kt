@@ -52,7 +52,7 @@ class VMApiService {
             val ipAddress = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.publicIpAddress
             val sshPrivateKey = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.keyName
 
-            log.info("Successfully started EC2 Instance $instanceId based on AMI $amiId")
+            log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
             val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
             return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
         }
@@ -65,11 +65,11 @@ class VMApiService {
 
         Ec2Client { region = inputRegion }.use { ec2 ->
             ec2.startInstances(request)
-            log.info("Waiting until instance $instanceId starts. This will take a few minutes.")
+            log.info { "Waiting until instance $instanceId starts. This will take a few minutes." }
             ec2.waitUntilInstanceRunning { // suspend call
                 instanceIds = listOf(instanceId)
             }
-            log.info("Successfully started instance $instanceId")
+            log.info { "Successfully started instance $instanceId" }
         }
     }
 
@@ -82,7 +82,7 @@ class VMApiService {
         Ec2Client { region = inputRegion }.use { ec2 ->
             val response = ec2.terminateInstances(request)
             response.terminatingInstances?.forEach { instance ->
-                log.info("The ID of the terminated instance is ${instance.instanceId}")
+                log.info { "The ID of the terminated instance is ${instance.instanceId}" }
             }
         }
     }

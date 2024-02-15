@@ -72,7 +72,7 @@ class DBApiService {
         val sleepTime: Long = 20
         var instanceReady = false
         var instanceReadyStr: String
-        log.info("Waiting for instance to become available.")
+        log.info { "Waiting for instance to become available." }
 
         val instanceRequest = DescribeDbInstancesRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -90,13 +90,13 @@ class DBApiService {
                             instanceReady = true
                             publicFQDN = instance.endpoint?.address + instance.endpoint?.port
                         } else {
-                            log.info("...$instanceReadyStr")
+                            log.info { "...$instanceReadyStr" }
                             delay(sleepTime * 1000)
                         }
                     }
                 }
             }
-            log.info("Database instance is available!")
+            log.info { "Database instance is available!" }
         }
         return publicFQDN
     }
@@ -111,7 +111,7 @@ class DBApiService {
 
         RdsClient { region = inputRegion }.use { rdsClient ->
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
-            log.info("The status of the database is ${response.dbInstance?.dbInstanceStatus}")
+            log.info { "The status of the database is ${response.dbInstance?.dbInstanceStatus}" }
         }
     }
 

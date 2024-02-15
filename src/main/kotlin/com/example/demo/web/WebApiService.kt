@@ -99,7 +99,7 @@ class WebApiService {
                             instanceReady = true
                             envEndpoint = instance.endpointUrl.toString()
                         } else {
-                            log.info("...$instanceReadyStr")
+                            log.info { "...$instanceReadyStr" }
                             delay(sleepTime * 1000)
                         }
                     }
@@ -118,7 +118,7 @@ class WebApiService {
 
         ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
             beanstalkClient.deleteApplication(applicationRequest)
-            log.info("The Elastic Beanstalk application was successfully deleted!")
+            log.info { "The Elastic Beanstalk application was successfully deleted!" }
         }
     }
 }
