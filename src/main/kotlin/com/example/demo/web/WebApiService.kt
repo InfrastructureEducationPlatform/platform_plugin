@@ -21,6 +21,11 @@ class WebApiService {
         if(webFeatures.region == "" || webFeatures.tier == "" || webFeatures.containerMetadata.imageTags == "" || webFeatures.containerMetadata.registryUrl == "") {
             throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
         }
+
+        val regexObj = RegexObj()
+        if(!regexObj.verifyWebServerName(block.name)) {
+            throw CustomException(ErrorCode.INVALID_WEBSERVER_NAME)
+        }
     }
     suspend fun createEBInstance(block: Block): BlockOutput {
 
@@ -35,7 +40,11 @@ class WebApiService {
             val applicationResponse = beanstalkClient.createApplication(applicationRequest)
             tableArn = applicationResponse.application?.applicationArn.toString()
         }
-        val endpoint:String = createEBEnvironment("test", block.name, inputRegion)
+        val envName =
+            if(block.name.length < 36) block.name + "-env"
+            else block.name.substring(0 until 36) + "-env"
+
+        val endpoint:String = createEBEnvironment(envName, block.name, inputRegion)
         val ebOutput = WebServerOutput(block.name, endpoint)
 
         return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)

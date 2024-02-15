@@ -20,6 +20,17 @@ class DBApiService {
         if(dbFeatures.region == "" || dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
         }
+
+        val regexObj = RegexObj()
+        if(!regexObj.verifyDbName(block.name)) {
+            throw CustomException(ErrorCode.INVALID_DB_NAME)
+        }
+        if(!regexObj.verifyDbUserName(dbFeatures.masterUsername)) {
+            throw CustomException(ErrorCode.INVALID_DB_USERNAME)
+        }
+        if(!regexObj.verifyDbUserPassword(dbFeatures.masterUserPassword)) {
+            throw CustomException(ErrorCode.INVALID_DB_USER_PASSWORD)
+        }
     }
     suspend fun createDatabaseInstance(
         dbInstanceIdentifierVal: String?,

@@ -32,7 +32,7 @@ class ApiController(
             val blockOutput:BlockOutput = when (block.type) {
                 "virtualMachine" -> vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
                 "webServer" -> webApiService.createEBInstance(block)
-                "database" -> dbApiService.createDatabaseInstance("test-db", block)
+                "database" -> dbApiService.createDatabaseInstance(block.name, block)
                 else -> { throw CustomException(ErrorCode.INVALID_BLOCK_TYPE) }
             }
             blockOutputList.add(blockOutput)
