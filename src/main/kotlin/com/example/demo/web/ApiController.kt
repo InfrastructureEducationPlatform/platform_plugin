@@ -3,6 +3,9 @@ package com.example.demo.web
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.RequestSketchDto
 import com.example.demo.web.dto.ResponseSketchDto
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
@@ -15,8 +18,6 @@ class ApiController(
 ) {
     @PostMapping("/deploymentSketch")
     suspend fun deploymentSketch(@RequestBody sketch: RequestSketchDto): ResponseSketchDto {
-        val blockOutputList = ArrayList<BlockOutput>()
-
         //Service 가능 여부 체크
         for (block in sketch.blockList) {
             when (block.type) {
@@ -28,15 +29,22 @@ class ApiController(
         }
 
         //Service 배포
-        for (block in sketch.blockList) {
-            val blockOutput:BlockOutput = when (block.type) {
-                "virtualMachine" -> vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
-                "webServer" -> webApiService.createEBInstance(block)
-                "database" -> dbApiService.createDatabaseInstance(block.name, block)
-                else -> { throw CustomException(ErrorCode.INVALID_BLOCK_TYPE) }
+        val blockOutputDeferredList = mutableListOf<Deferred<BlockOutput>>()
+        coroutineScope {
+            for (block in sketch.blockList) {
+                val blockOutputDeferred = async {
+                    when (block.type) {
+                        "virtualMachine" -> vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
+                        "webServer" -> webApiService.createEBInstance(block)
+                        "database" -> dbApiService.createDatabaseInstance(block.name, block)
+                        else -> { throw CustomException(ErrorCode.INVALID_BLOCK_TYPE) }
+                    }
+                }
+                blockOutputDeferredList.add(blockOutputDeferred)
             }
-            blockOutputList.add(blockOutput)
         }
+        val blockOutputList = blockOutputDeferredList.map { it.await() }
+
         return ResponseSketchDto(sketch.sketchId, sketch.blockList, blockOutputList)
     }
 }
