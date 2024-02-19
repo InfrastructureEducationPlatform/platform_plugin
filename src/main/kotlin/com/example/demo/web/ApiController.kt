@@ -59,46 +59,6 @@ class ApiController(
 
         return ResponseSketchDto(sketch.sketchId, sketch.blockList, blockOutputList)
     }
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "배포 요청 테스트 값 정상 반환", content = [
-            Content(mediaType = "application/json", array = ArraySchema(schema = Schema(implementation = RequestSketchDto::class)))
-        ]),
-        ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
-    ])
-    @Operation(summary = "배포 테스트를 위한 테스트 값 요청 API")
-    @GetMapping("/deploymentSketch/{type}")
-    fun getExampleById(@Parameter(name= "type", description = "배포 요청 블록 타입", schema = Schema(defaultValue = "VM", allowableValues = ["VM", "WEB", "DB"]))
-                       @PathVariable type: String): RequestSketchDto {
-        val blockList = ArrayList<Block>()
-        val block = Block()
-        val requestSketchDto:RequestSketchDto = when(type) {
-            "vm", "VM" -> {
-                block.name = "testVM"
-                block.type = "virtualMachine"
-                block.virtualMachineFeatures = VirtualMachineFeatures("low","ubuntu","us-east-1")
-                blockList.add(block)
-                RequestSketchDto("test", blockList)
-            }
-            "web", "WEB" -> {
-                block.name = "testWeb"
-                block.type = "webServer"
-                block.webServerFeatures = WebServerFeatures("low", "us-east-1", ContainerMetadata("dotnet/samples:aspnetapp", "mcr.microsoft.com"))
-                blockList.add(block)
-                RequestSketchDto("test", blockList)
-            }
-            "db", "DB" -> {
-                block.name = "testDB"
-                block.type = "database"
-                block.databaseFeatures = DatabaseFeatures("low", "us-east-1", "testuser", "testpassword")
-                blockList.add(block)
-                RequestSketchDto("test",blockList)
-            }
-            else -> {
-                throw CustomException(ErrorCode.INVALID_REQUEST)
-            }
-        }
-        return requestSketchDto
-    }
 
     @DeleteMapping("/deleteVm")
     @Operation(summary = "VM 삭제", description = "VM 인스턴스를 삭제합니다.")

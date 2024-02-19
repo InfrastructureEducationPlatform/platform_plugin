@@ -1,17 +1,17 @@
 package com.example.demo.web.dto
 
 data class Block(
-    var x: Int = 0,
-    var y: Int = 0,
-    var id: String = "",
-    var name: String = "",
-    var tags: List<String> = ArrayList(),
-    var type: String = "",
-    var description: String = "",
-    var advancedMeta: LinkedHashMap<String, String>? = null,
-    var virtualMachineFeatures: VirtualMachineFeatures? = null,
-    var webServerFeatures: WebServerFeatures? = null,
-    var databaseFeatures: DatabaseFeatures? = null
+    var x: Int,
+    var y: Int,
+    var id: String,
+    var name: String,
+    var tags: List<String>,
+    var type: String,
+    var description: String,
+    var advancedMeta: LinkedHashMap<String, String>?,
+    var virtualMachineFeatures: VirtualMachineFeatures?,
+    var webServerFeatures: WebServerFeatures?,
+    var databaseFeatures: DatabaseFeatures?
 )
 data class VirtualMachineFeatures (
     var tier:String,
