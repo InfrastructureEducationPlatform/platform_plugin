@@ -29,6 +29,7 @@ class CustomException(
 
 enum class ErrorCode(val status: HttpStatus, val message: String) {
     // 400 - Bad Request
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "입력 파라미터가 올바르지 않습니다."),
     INVALID_BLOCK_TYPE(HttpStatus.BAD_REQUEST, "블록 타입이 올바르지 않습니다."),
     INVALID_VM_FEATURES(HttpStatus.BAD_REQUEST, "VM블록 Features값이 올바르지 않습니다."),
     INVALID_WEBSERVER_FEATURES(HttpStatus.BAD_REQUEST, "Web Server블록 Features값이 올바르지 않습니다."),
