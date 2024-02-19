@@ -28,7 +28,7 @@ class ApiController(
         ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
     ])
     @Operation(summary = "Sketch 배포 테스트 API")
-    @PostMapping("/deploymentSketch")
+    @PostMapping("/sketch/deployment")
     suspend fun deploymentSketch(@RequestBody sketch: RequestSketchDto): ResponseSketchDto {
         //Service 가능 여부 체크
         for (block in sketch.blockList) {
@@ -60,19 +60,19 @@ class ApiController(
         return ResponseSketchDto(sketch.sketchId, sketch.blockList, blockOutputList)
     }
 
-    @DeleteMapping("/deleteVm")
+    @DeleteMapping("/sketch/vm")
     @Operation(summary = "VM 삭제", description = "VM 인스턴스를 삭제합니다.")
     suspend fun vmDelete(@Parameter(description = "VM 인스턴스 ID", required = true) @RequestParam("instanceID") instanceId: String,
                          @Parameter(description = "VM 생성 지역", required = true) @RequestParam("region", defaultValue = "us-east-1") region: String) {
         vmApiService.terminateEC2(instanceId, region)
     }
-    @DeleteMapping("/deleteWeb")
+    @DeleteMapping("/sketch/web")
     @Operation(summary = "웹 서버 삭제", description = "웹 서버를 삭제합니다.")
     suspend fun webDelete(@Parameter(description = "웹 서버 이름", required = true) @RequestParam("name") appName: String,
                           @Parameter(description = "웹 생성 지역", required = true) @RequestParam("region", defaultValue = "us-east-1") region: String) {
         webApiService.deleteApp(appName, region)
     }
-    @DeleteMapping("/deleteDb")
+    @DeleteMapping("/sketch/db")
     @Operation(summary = "DB 삭제", description = "DB 인스턴스를 삭제합니다.")
     suspend fun dbDelete(@Parameter(description = "삭제 요청 DB 식별자", required = true) @RequestParam("dbInstanceIdentifierVal") dbInstanceIdentifierVal: String,
                          @Parameter(description = "DB 생성 지역", required = true) @RequestParam("region", defaultValue = "us-east-1") region: String) {
