@@ -5,8 +5,8 @@ import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
 import aws.sdk.kotlin.services.rds.model.RdsException
-import com.example.demo.SpringBootTutorialApplication.Companion.handleAwsException
-import com.example.demo.log
+import com.example.demo.utils.CommonUtils
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.*
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
@@ -67,7 +67,7 @@ class DBApiService {
             )
             return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
         } catch (ex: RdsException) {
-            handleAwsException(ex)
+            CommonUtils.handleAwsException(ex)
 
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }

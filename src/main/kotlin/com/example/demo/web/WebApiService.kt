@@ -3,8 +3,8 @@ package com.example.demo.web
 import aws.sdk.kotlin.services.elasticbeanstalk.ElasticBeanstalkClient
 import aws.sdk.kotlin.services.elasticbeanstalk.model.*
 import aws.smithy.kotlin.runtime.http.response.HttpResponse
-import com.example.demo.SpringBootTutorialApplication.Companion.handleAwsException
-import com.example.demo.log
+import com.example.demo.utils.CommonUtils
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.WebServerOutput
@@ -51,7 +51,7 @@ class WebApiService {
 
             return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
         } catch (ex: ElasticBeanstalkException) {
-            handleAwsException(ex)
+            CommonUtils.handleAwsException(ex)
 
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }

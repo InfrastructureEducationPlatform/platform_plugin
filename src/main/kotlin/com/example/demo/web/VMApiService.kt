@@ -4,8 +4,8 @@ import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
 import aws.smithy.kotlin.runtime.retries.getOrThrow
-import com.example.demo.SpringBootTutorialApplication.Companion.handleAwsException
-import com.example.demo.log
+import com.example.demo.utils.CommonUtils
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
@@ -58,7 +58,7 @@ class VMApiService {
                 return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
             }
         } catch (ex: Ec2Exception) {
-            handleAwsException(ex)
+            CommonUtils.handleAwsException(ex)
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
 
