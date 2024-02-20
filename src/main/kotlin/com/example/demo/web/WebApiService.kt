@@ -1,20 +1,19 @@
 package com.example.demo.web
 
-import aws.sdk.kotlin.services.ec2.model.Ec2Exception
 import aws.sdk.kotlin.services.elasticbeanstalk.ElasticBeanstalkClient
 import aws.sdk.kotlin.services.elasticbeanstalk.model.*
 import aws.smithy.kotlin.runtime.http.response.HttpResponse
+import com.example.demo.utils.CommonUtils
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.WebServerOutput
 import kotlinx.coroutines.delay
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 
 
 @Service
 class WebApiService {
-    val log = KotlinLogging.logger {}
     suspend fun isValidWebBlock(block: Block) {
         if(block.webServerFeatures == null) {
             throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
@@ -52,11 +51,7 @@ class WebApiService {
 
             return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
         } catch (ex: ElasticBeanstalkException) {
-            val awsRequestId = ex.sdkErrorMetadata.requestId
-            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
-
-            log.error { "requestId was: $awsRequestId" }
-            log.error { "http status code was: ${httpResp?.status}" }
+            CommonUtils.handleAwsException(ex)
 
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }

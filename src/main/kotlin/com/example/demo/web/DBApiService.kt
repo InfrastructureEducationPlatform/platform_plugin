@@ -1,20 +1,18 @@
 package com.example.demo.web
 
-import aws.sdk.kotlin.services.ec2.model.Ec2Exception
 import aws.sdk.kotlin.services.rds.RdsClient
 import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
 import aws.sdk.kotlin.services.rds.model.RdsException
-import aws.smithy.kotlin.runtime.http.response.HttpResponse
+import com.example.demo.utils.CommonUtils
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.*
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 
 @Service
 class DBApiService {
-    val log = KotlinLogging.logger {}
     suspend fun isValidDbBlock(block: Block) {
         if(block.databaseFeatures == null) {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
@@ -69,11 +67,7 @@ class DBApiService {
             )
             return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
         } catch (ex: RdsException) {
-            val awsRequestId = ex.sdkErrorMetadata.requestId
-            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
-
-            log.error { "requestId was: $awsRequestId" }
-            log.error { "http status code was: ${httpResp?.status}" }
+            CommonUtils.handleAwsException(ex)
 
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }

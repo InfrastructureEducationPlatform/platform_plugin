@@ -3,17 +3,16 @@ package com.example.demo.web
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
-import aws.smithy.kotlin.runtime.http.response.HttpResponse
 import aws.smithy.kotlin.runtime.retries.getOrThrow
+import com.example.demo.utils.CommonUtils
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.springframework.stereotype.Service
 
 @Service
 class VMApiService {
-    val log = KotlinLogging.logger {}
     suspend fun isValidVmBlock(block: Block) {
         if(block.virtualMachineFeatures == null) {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
@@ -59,12 +58,7 @@ class VMApiService {
                 return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
             }
         } catch (ex: Ec2Exception) {
-            val awsRequestId = ex.sdkErrorMetadata.requestId
-            val httpResp = ex.sdkErrorMetadata.protocolResponse as? HttpResponse
-
-            log.error { "requestId was: $awsRequestId" }
-            log.error { "http status code was: ${httpResp?.status}" }
-
+            CommonUtils.handleAwsException(ex)
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
 
