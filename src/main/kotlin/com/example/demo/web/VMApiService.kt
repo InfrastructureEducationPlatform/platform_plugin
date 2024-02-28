@@ -1,11 +1,13 @@
 package com.example.demo.web
 
+import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
 import aws.smithy.kotlin.runtime.retries.getOrThrow
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
+import com.example.demo.web.dto.AwsConfiguration
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
@@ -23,17 +25,24 @@ class VMApiService {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
         }
     }
-    suspend fun createEC2Instance(block: Block, amiId: String): BlockOutput {
+    suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String): BlockOutput {
         val request = RunInstancesRequest {
             imageId = amiId
-            instanceType = InstanceType.T1Micro
+            instanceType = InstanceType.T2Micro
             maxCount = 1
             minCount = 1
         }
         val inputRegion:String = block.virtualMachineFeatures!!.region
 
         try {
-            Ec2Client { region = inputRegion }.use { ec2 ->
+            Ec2Client {
+                region = awsConfiguration.region
+                credentialsProvider = StaticCredentialsProvider {
+                    accessKeyId = awsConfiguration.accessKeyId
+                    secretAccessKey = awsConfiguration.secretAccessKey
+                    region = awsConfiguration.region
+                }
+            }.use { ec2 ->
                 val response = ec2.runInstances(request)
                 val instanceId = response.instances?.get(0)?.instanceId
                 val tag = Tag {

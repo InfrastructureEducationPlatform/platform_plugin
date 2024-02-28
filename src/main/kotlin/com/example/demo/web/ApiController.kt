@@ -30,6 +30,14 @@ class ApiController(
     @Operation(summary = "Sketch 배포 테스트 API")
     @PostMapping("/sketch/deployment")
     suspend fun deploymentSketch(@RequestBody sketch: RequestSketchDto): ResponseSketchDto {
+        // Create AWS Credential
+        // {"Region": "Default Region Code(i.e: ap-northeast-2)", "AccessKey": "Access Key ID", "SecretKey": "Access Secret Key"}
+        val awsCredential = AwsConfiguration(
+                region = sketch.pluginInstallationInformation["Region"].asText(),
+                accessKeyId = sketch.pluginInstallationInformation["AccessKey"].asText(),
+                secretAccessKey = sketch.pluginInstallationInformation["SecretKey"].asText()
+        )
+
         //Service 가능 여부 체크
         for (block in sketch.blockList) {
             when (block.type) {
@@ -46,7 +54,7 @@ class ApiController(
             for (block in sketch.blockList) {
                 val blockOutputDeferred = async {
                     when (block.type) {
-                        "virtualMachine" -> vmApiService.createEC2Instance(block, "ami-0c0b74d29acd0cd97")
+                        "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, block, "ami-0f3a440bbcff3d043")
                         "webServer" -> webApiService.createEBInstance(block)
                         "database" -> dbApiService.createDatabaseInstance(block.name, block)
                         else -> { throw CustomException(ErrorCode.INVALID_BLOCK_TYPE) }
