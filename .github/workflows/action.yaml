@@ -60,7 +60,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy_kubernetes:
+  change_infrastructure_code:
     concurrency:
       group: deploy_kubernetes
       cancel-in-progress: true
@@ -70,20 +70,27 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
-
-      - name: Set the Kubernetes context
-        uses: azure/k8s-set-context@v2
         with:
-          method: service-account
-          k8s-url: ${{ secrets.KUBERNETES_CLUSTER_URL }}
-          k8s-secret: ${{ secrets.KUBERNETES_SECRET }}
+          repository: KangDroid/personal-infrastructure
+          path: personal-infrastructure
+          token: ${{ secrets.GH_TK }}
+      - name: Edit Deployment Configuration using yq
+        env:
+          IMAGE_WITH_TAG: kangdroid/blockinfrastructure-plugin:${{ github.sha }}
+          DEPLOYMENT_FILE_PATH: "argocd/deployment/backend-applications/blockinfrastructure-plugin/deployment.yaml"
+          CONTAINER_NAME: "wein-konkuk"
+        run: |
+          yq e "(.spec.template.spec.containers[] | select(.name == strenv(CONTAINER_NAME)).image) = strenv(IMAGE_WITH_TAG)" -i personal-infrastructure/${DEPLOYMENT_FILE_PATH}
+      - name: Push to GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GH_TK }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd personal-infrastructure
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global user.name 'github-actions[bot]'
 
-      - name: Deploy to the Kubernetes cluster
-        uses: azure/k8s-deploy@v1
-        with:
-          namespace: blockinfrastructure
-          manifests: |
-            kubernetes/deployment.yaml
-            kubernetes/service.yaml
-          images: |
-            kangdroid/blockinfrastructure-plugin:${{ github.sha }}
+          git add -A
+          git commit -am "[Feature] Automated: Update Block Infrastructure Plugin Image to $IMAGE_TAG";
+          git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
+          git push --prune https://actions:$GH_TOKEN@github.com/KangDroid/personal-infrastructure
