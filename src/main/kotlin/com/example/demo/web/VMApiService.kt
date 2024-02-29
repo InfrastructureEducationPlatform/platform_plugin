@@ -31,20 +31,6 @@ class VMApiService(
 
     suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String): BlockOutput {
         val vpcAndSubnet = vpcService.createVpc(awsConfiguration)
-        val request = RunInstancesRequest {
-            imageId = amiId
-            instanceType = InstanceType.T2Micro
-            maxCount = 1
-            minCount = 1
-            subnetId = vpcAndSubnet.subnetIds[0]
-            networkInterfaces = listOf(
-                    InstanceNetworkInterfaceSpecification {
-                        associatePublicIpAddress = true
-                        deviceIndex = 0
-                        subnetId = vpcAndSubnet.subnetIds[0]
-                    }
-            )
-        }
         val inputRegion: String = block.virtualMachineFeatures!!.region
 
         try {
@@ -56,6 +42,25 @@ class VMApiService(
                     region = awsConfiguration.region
                 }
             }.use { ec2 ->
+                val keyPairRequest = CreateKeyPairRequest {
+                    keyName = "aws-keypair"
+                }
+                val keyPairResponse = ec2.createKeyPair(keyPairRequest)
+
+                val request = RunInstancesRequest {
+                    imageId = amiId
+                    instanceType = InstanceType.T2Micro
+                    maxCount = 1
+                    minCount = 1
+                    keyName = keyPairResponse.keyName
+                    networkInterfaces = listOf(
+                            InstanceNetworkInterfaceSpecification {
+                                associatePublicIpAddress = true
+                                deviceIndex = 0
+                                subnetId = vpcAndSubnet.subnetIds[0]
+                            }
+                    )
+                }
                 val response = ec2.runInstances(request)
                 val instanceId = response.instances?.get(0)?.instanceId
                 val tag = Tag {
