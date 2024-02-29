@@ -78,7 +78,7 @@ class VMApiService(
                 }
 
                 val ipAddress = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.publicIpAddress
-                val sshPrivateKey = waitResponse.getOrThrow().reservations?.get(0)?.instances?.get(0)?.keyName
+                val sshPrivateKey = keyPairResponse.keyMaterial
 
                 log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
                 val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
