@@ -11,28 +11,34 @@ import com.example.demo.web.dto.AwsConfiguration
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
+import com.example.demo.web.service.aws.VpcService
 import org.springframework.stereotype.Service
 
 @Service
-class VMApiService {
+class VMApiService(
+        private val vpcService: VpcService
+) {
     suspend fun isValidVmBlock(block: Block) {
-        if(block.virtualMachineFeatures == null) {
+        if (block.virtualMachineFeatures == null) {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
         }
         val vmFeatures = block.virtualMachineFeatures!!
 
-        if(vmFeatures.region == "" || vmFeatures.osType == "" || vmFeatures.tier == "") {
+        if (vmFeatures.region == "" || vmFeatures.osType == "" || vmFeatures.tier == "") {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
         }
     }
+
     suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String): BlockOutput {
+        val vpcAndSubnet = vpcService.createVpc(awsConfiguration)
         val request = RunInstancesRequest {
             imageId = amiId
             instanceType = InstanceType.T2Micro
             maxCount = 1
             minCount = 1
+            subnetId = vpcAndSubnet.subnetIds[0]
         }
-        val inputRegion:String = block.virtualMachineFeatures!!.region
+        val inputRegion: String = block.virtualMachineFeatures!!.region
 
         try {
             Ec2Client {
