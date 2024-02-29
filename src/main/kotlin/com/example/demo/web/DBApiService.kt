@@ -48,7 +48,7 @@ class DBApiService(
     ): BlockOutput {
         val vpc = vpcService.createVpc(awsConfiguration)
         val dbFeatures = block.databaseFeatures!!
-        val inputRegion = dbFeatures.region
+        val inputRegion = "ap-northeast-2"
         val masterUsernameVal = dbFeatures.masterUsername
         val masterUserPasswordVal = dbFeatures.masterUserPassword
 
@@ -76,7 +76,7 @@ class DBApiService(
                 val response = rdsClient.createDbInstance(instanceRequest)
                 log.info { "The status is ${response.dbInstance?.dbInstanceStatus}" }
             }
-            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
+            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion, awsConfiguration)
             val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
                     masterUserPasswordVal
             )
@@ -88,7 +88,7 @@ class DBApiService(
         }
     }
 
-    suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?): String {
+    suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?, awsConfiguration: AwsConfiguration): String {
         val sleepTime: Long = 20
         var instanceReady = false
         var instanceReadyStr: String
@@ -99,7 +99,13 @@ class DBApiService(
         }
 
         var publicFQDN = ""
-        RdsClient { region = inputRegion }.use { rdsClient ->
+        RdsClient {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { rdsClient ->
             while (!instanceReady) {
                 val response = rdsClient.describeDbInstances(instanceRequest)
                 val instanceList = response.dbInstances

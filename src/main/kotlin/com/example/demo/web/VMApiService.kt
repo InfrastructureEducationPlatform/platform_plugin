@@ -43,9 +43,8 @@ class VMApiService(
                     region = awsConfiguration.region
                 }
             }.use { ec2 ->
-
                 val keyPairRequest = CreateKeyPairRequest {
-                    keyName = "aws-keypair-${Random(1000).nextInt()}"
+                    keyName = "aws-keypair-${Random.nextInt(1000)}"
                 }
                 val keyPairResponse = ec2.createKeyPair(keyPairRequest)
 
