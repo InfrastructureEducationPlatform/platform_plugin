@@ -37,6 +37,13 @@ class VMApiService(
             maxCount = 1
             minCount = 1
             subnetId = vpcAndSubnet.subnetIds[0]
+            networkInterfaces = listOf(
+                    InstanceNetworkInterfaceSpecification {
+                        associatePublicIpAddress = true
+                        deviceIndex = 0
+                        subnetId = vpcAndSubnet.subnetIds[0]
+                    }
+            )
         }
         val inputRegion: String = block.virtualMachineFeatures!!.region
 
