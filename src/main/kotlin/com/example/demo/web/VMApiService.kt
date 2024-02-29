@@ -13,6 +13,7 @@ import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
 import com.example.demo.web.service.aws.VpcService
 import org.springframework.stereotype.Service
+import kotlin.random.Random
 
 @Service
 class VMApiService(
@@ -43,7 +44,7 @@ class VMApiService(
                 }
             }.use { ec2 ->
                 val keyPairRequest = CreateKeyPairRequest {
-                    keyName = "aws-keypair"
+                    keyName = "aws-keypair-${Random(1000).nextInt()}"
                 }
                 val keyPairResponse = ec2.createKeyPair(keyPairRequest)
 
