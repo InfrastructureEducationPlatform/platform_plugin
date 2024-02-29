@@ -13,6 +13,7 @@ import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.VirtualMachineOutput
 import com.example.demo.web.service.aws.VpcService
 import org.springframework.stereotype.Service
+import kotlin.random.Random
 
 @Service
 class VMApiService(
@@ -43,7 +44,7 @@ class VMApiService(
                 }
             }.use { ec2 ->
                 val keyPairRequest = CreateKeyPairRequest {
-                    keyName = "aws-keypair"
+                    keyName = "aws-keypair-${Random.nextInt(1000)}"
                 }
                 val keyPairResponse = ec2.createKeyPair(keyPairRequest)
 
@@ -58,6 +59,7 @@ class VMApiService(
                                 associatePublicIpAddress = true
                                 deviceIndex = 0
                                 subnetId = vpcAndSubnet.subnetIds[0]
+                                this.groups = listOf("sg-0b0a9bd3267e89e92")
                             }
                     )
                 }

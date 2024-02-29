@@ -1,5 +1,6 @@
 package com.example.demo.web
 
+import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.rds.RdsClient
 import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
 import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
@@ -7,39 +8,47 @@ import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
 import aws.sdk.kotlin.services.rds.model.RdsException
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
-import com.example.demo.web.dto.*
+import com.example.demo.web.dto.AwsConfiguration
+import com.example.demo.web.dto.Block
+import com.example.demo.web.dto.BlockOutput
+import com.example.demo.web.dto.DatabaseOutput
+import com.example.demo.web.service.aws.VpcService
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 
 @Service
-class DBApiService {
+class DBApiService(
+        private val vpcService: VpcService
+) {
     suspend fun isValidDbBlock(block: Block) {
-        if(block.databaseFeatures == null) {
+        if (block.databaseFeatures == null) {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
         }
         val dbFeatures = block.databaseFeatures!!
-        if(dbFeatures.region == "" || dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
+        if (dbFeatures.region == "" || dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
         }
 
         val regexObj = RegexObj()
-        if(!regexObj.verifyDbName(block.name)) {
+        if (!regexObj.verifyDbName(block.name)) {
             throw CustomException(ErrorCode.INVALID_DB_NAME)
         }
-        if(!regexObj.verifyDbUserName(dbFeatures.masterUsername)) {
+        if (!regexObj.verifyDbUserName(dbFeatures.masterUsername)) {
             throw CustomException(ErrorCode.INVALID_DB_USERNAME)
         }
-        if(!regexObj.verifyDbUserPassword(dbFeatures.masterUserPassword)) {
+        if (!regexObj.verifyDbUserPassword(dbFeatures.masterUserPassword)) {
             throw CustomException(ErrorCode.INVALID_DB_USER_PASSWORD)
         }
     }
-    suspend fun createDatabaseInstance(
-        dbInstanceIdentifierVal: String?,
-        block: Block
-    ): BlockOutput {
 
+    suspend fun createDatabaseInstance(
+            dbInstanceIdentifierVal: String?,
+            block: Block,
+            awsConfiguration: AwsConfiguration
+    ): BlockOutput {
+        val vpc = vpcService.createVpc(awsConfiguration)
         val dbFeatures = block.databaseFeatures!!
-        val inputRegion = dbFeatures.region
+        val inputRegion = "ap-northeast-2"
         val masterUsernameVal = dbFeatures.masterUsername
         val masterUserPasswordVal = dbFeatures.masterUserPassword
 
@@ -53,17 +62,23 @@ class DBApiService {
             storageType = "standard"
             masterUsername = masterUsernameVal
             masterUserPassword = masterUserPasswordVal
+            dbSecurityGroups = listOf("test-poc")
         }
 
         try {
-            RdsClient { region = inputRegion }.use { rdsClient ->
+            RdsClient {
+                region = inputRegion
+                credentialsProvider = StaticCredentialsProvider {
+                    accessKeyId = awsConfiguration.accessKeyId
+                    secretAccessKey = awsConfiguration.secretAccessKey
+                }
+            }.use { rdsClient ->
                 val response = rdsClient.createDbInstance(instanceRequest)
                 log.info { "The status is ${response.dbInstance?.dbInstanceStatus}" }
-
             }
-            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion)
+            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion, awsConfiguration)
             val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
-                masterUserPasswordVal
+                    masterUserPasswordVal
             )
             return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
         } catch (ex: RdsException) {
@@ -73,7 +88,7 @@ class DBApiService {
         }
     }
 
-    suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?): String {
+    suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?, awsConfiguration: AwsConfiguration): String {
         val sleepTime: Long = 20
         var instanceReady = false
         var instanceReadyStr: String
@@ -84,7 +99,13 @@ class DBApiService {
         }
 
         var publicFQDN = ""
-        RdsClient { region = inputRegion }.use { rdsClient ->
+        RdsClient {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { rdsClient ->
             while (!instanceReady) {
                 val response = rdsClient.describeDbInstances(instanceRequest)
                 val instanceList = response.dbInstances
