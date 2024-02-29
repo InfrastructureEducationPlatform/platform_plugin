@@ -62,6 +62,7 @@ class DBApiService(
             storageType = "standard"
             masterUsername = masterUsernameVal
             masterUserPassword = masterUserPasswordVal
+            dbSecurityGroups = listOf("test-poc")
         }
 
         try {

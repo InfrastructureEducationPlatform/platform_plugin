@@ -43,6 +43,7 @@ class VMApiService(
                     region = awsConfiguration.region
                 }
             }.use { ec2 ->
+
                 val keyPairRequest = CreateKeyPairRequest {
                     keyName = "aws-keypair-${Random(1000).nextInt()}"
                 }
@@ -61,6 +62,7 @@ class VMApiService(
                                 subnetId = vpcAndSubnet.subnetIds[0]
                             }
                     )
+                    securityGroupIds = listOf("sg-0b0a9bd3267e89e92")
                 }
                 val response = ec2.runInstances(request)
                 val instanceId = response.instances?.get(0)?.instanceId
