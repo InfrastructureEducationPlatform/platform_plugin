@@ -1,9 +1,7 @@
 package com.example.demo.web.service.aws
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
-import aws.sdk.kotlin.services.ec2.Ec2Client
-import aws.sdk.kotlin.services.ec2.createSubnet
-import aws.sdk.kotlin.services.ec2.createVpc
+import aws.sdk.kotlin.services.ec2.*
 import aws.sdk.kotlin.services.ec2.model.ResourceType
 import aws.sdk.kotlin.services.ec2.model.Tag
 import aws.sdk.kotlin.services.ec2.model.TagSpecification
@@ -57,6 +55,25 @@ class VpcService {
                         )
                     }
             )
+        }
+
+        val internetGatewayResponse = ec2Client.createInternetGateway {
+            tagSpecifications = listOf(
+                    TagSpecification {
+                        resourceType = ResourceType.InternetGateway
+                        tags = listOf(
+                                Tag {
+                                    key = "Name"
+                                    value = "deployment-internet-gateway"
+                                }
+                        )
+                    }
+            )
+        }
+
+        ec2Client.attachInternetGateway {
+            vpcId = vpcResponse.vpc!!.vpcId
+            internetGatewayId = internetGatewayResponse.internetGateway!!.internetGatewayId
         }
 
         return CreateVpcSubnetDto(
