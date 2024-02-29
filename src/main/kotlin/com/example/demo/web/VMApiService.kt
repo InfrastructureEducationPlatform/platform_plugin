@@ -60,9 +60,9 @@ class VMApiService(
                                 associatePublicIpAddress = true
                                 deviceIndex = 0
                                 subnetId = vpcAndSubnet.subnetIds[0]
+                                this.groups = listOf("sg-0b0a9bd3267e89e92")
                             }
                     )
-                    securityGroupIds = listOf("sg-0b0a9bd3267e89e92")
                 }
                 val response = ec2.runInstances(request)
                 val instanceId = response.instances?.get(0)?.instanceId
