@@ -2,6 +2,7 @@ package com.example.demo.web.service.aws
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.ec2.*
+import aws.sdk.kotlin.services.ec2.model.Filter
 import aws.sdk.kotlin.services.ec2.model.ResourceType
 import aws.sdk.kotlin.services.ec2.model.Tag
 import aws.sdk.kotlin.services.ec2.model.TagSpecification
@@ -23,6 +24,31 @@ class VpcService {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey
             }
+        }
+
+        val vpcQuery = ec2Client.describeVpcs {
+            filters = listOf(
+                    Filter {
+                        name = "tag:Name"
+                        values = listOf("deployment-vpc")
+                    }
+            )
+        }
+
+        // Check vpc exists
+        if (vpcQuery.vpcs?.size!! > 0) {
+            return CreateVpcSubnetDto(
+                    vpcId = vpcQuery.vpcs!![0].vpcId!!,
+                    cidrBlock = vpcQuery.vpcs!![0].cidrBlock!!,
+                    subnetIds = ec2Client.describeSubnets {
+                        filters = listOf(
+                                Filter {
+                                    name = "vpc-id"
+                                    values = listOf(vpcQuery.vpcs!![0].vpcId!!)
+                                }
+                        )
+                    }.subnets!!.map { it.subnetId!! }
+            )
         }
 
         val vpcResponse = ec2Client.createVpc {
