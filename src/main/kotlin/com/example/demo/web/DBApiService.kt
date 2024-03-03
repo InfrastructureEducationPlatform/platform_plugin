@@ -2,10 +2,7 @@ package com.example.demo.web
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.rds.RdsClient
-import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
-import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
-import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
-import aws.sdk.kotlin.services.rds.model.RdsException
+import aws.sdk.kotlin.services.rds.model.*
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.AwsConfiguration
@@ -51,6 +48,7 @@ class DBApiService(
         val inputRegion = "ap-northeast-2"
         val masterUsernameVal = dbFeatures.masterUsername
         val masterUserPasswordVal = dbFeatures.masterUserPassword
+        val dbSubnetGroupNameVal = "iep-db-subnet-group"
 
         val instanceRequest = CreateDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -62,7 +60,9 @@ class DBApiService(
             storageType = "standard"
             masterUsername = masterUsernameVal
             masterUserPassword = masterUserPasswordVal
-            dbSecurityGroups = listOf("test-poc")
+            dbSubnetGroupName = dbSubnetGroupNameVal
+            vpcSecurityGroupIds = listOf(vpc.securityGroupIds[1])
+            publiclyAccessible = true
         }
 
         try {
@@ -73,7 +73,21 @@ class DBApiService(
                     secretAccessKey = awsConfiguration.secretAccessKey
                 }
             }.use { rdsClient ->
+                try {
+                    val instanceSubnetRequest = CreateDbSubnetGroupRequest {
+                        subnetIds = vpc.subnetIds
+                        dbSubnetGroupName = dbSubnetGroupNameVal
+                        dbSubnetGroupDescription = "iep-db subnet group"
+                    }
+                    rdsClient.createDbSubnetGroup(instanceSubnetRequest)
+                }catch (e:DbSubnetGroupAlreadyExistsFault) {
+                    log.info {"$dbSubnetGroupNameVal is already exist"}
+                }
+
+
+                delay(1000)
                 val response = rdsClient.createDbInstance(instanceRequest)
+
                 log.info { "The status is ${response.dbInstance?.dbInstanceStatus}" }
             }
             val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion, awsConfiguration)
@@ -114,7 +128,7 @@ class DBApiService(
                         instanceReadyStr = instance.dbInstanceStatus.toString()
                         if (instanceReadyStr.contains("available")) {
                             instanceReady = true
-                            publicFQDN = instance.endpoint?.address + instance.endpoint?.port
+                            publicFQDN = instance.endpoint?.address + ":" + instance.endpoint?.port
                         } else {
                             log.info { "...$instanceReadyStr" }
                             delay(sleepTime * 1000)

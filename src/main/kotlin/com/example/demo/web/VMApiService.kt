@@ -31,7 +31,7 @@ class VMApiService(
     }
 
     suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String): BlockOutput {
-        val vpcAndSubnet = vpcService.createVpc(awsConfiguration)
+        val vpc = vpcService.createVpc(awsConfiguration)
         val inputRegion: String = block.virtualMachineFeatures!!.region
 
         try {
@@ -58,8 +58,8 @@ class VMApiService(
                             InstanceNetworkInterfaceSpecification {
                                 associatePublicIpAddress = true
                                 deviceIndex = 0
-                                subnetId = vpcAndSubnet.subnetIds[0]
-                                this.groups = listOf("sg-0b0a9bd3267e89e92")
+                                subnetId = vpc.subnetIds[0]
+                                groups = listOf(vpc.securityGroupIds[0])
                             }
                     )
                 }
@@ -121,5 +121,4 @@ class VMApiService(
             }
         }
     }
-
 }
