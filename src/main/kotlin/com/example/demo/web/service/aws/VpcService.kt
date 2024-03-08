@@ -162,7 +162,7 @@ class VpcService {
     }
 
     private suspend fun createSecurityGroups(ec2Client: Ec2Client, vpcId: String): List<String> {
-        val vmSgId = createSecurityGroup(ec2Client, "iep-vm-sg", "security group for vm", vpcId, listOf(20, 80))
+        val vmSgId = createSecurityGroup(ec2Client, "iep-vm-sg", "security group for vm", vpcId, listOf(22, 80))
         val dbSgId = createSecurityGroup(ec2Client, "iep-db-sg", "security group for db", vpcId, listOf(5432))
         return listOfNotNull(vmSgId, dbSgId)
     }
