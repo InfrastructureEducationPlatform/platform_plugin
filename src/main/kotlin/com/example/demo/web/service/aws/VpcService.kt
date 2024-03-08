@@ -3,6 +3,7 @@ package com.example.demo.web.service.aws
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.ec2.*
 import aws.sdk.kotlin.services.ec2.model.*
+import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.dto.AwsConfiguration
 import kotlinx.coroutines.*
 import org.springframework.stereotype.Service
@@ -151,6 +152,10 @@ class VpcService {
                 }
             )
         }
+        ec2Client.modifySubnetAttribute {
+            subnetId = subnetResponse.subnet!!.subnetId
+            mapPublicIpOnLaunch = AttributeBooleanValue { value = true }
+        }
         return subnetResponse.subnet!!.subnetId!!
     }
 
@@ -186,7 +191,7 @@ class VpcService {
             ipPermissions = listOf(ipPerm, ipPerm2)
         }
         ec2Client.authorizeSecurityGroupIngress(authRequest)
-        println("Successfully added ingress policy to Security Group $groupNameVal")
+        log.info { "Successfully added ingress policy to Security Group $groupNameVal" }
         return resp.groupId
     }
 
@@ -215,7 +220,7 @@ class VpcService {
             ipPermissions = listOf(ipPerm)
         }
         ec2Client.authorizeSecurityGroupIngress(authRequest)
-        println("Successfully added ingress policy to Security Group $groupNameVal")
+        log.info { "Successfully added ingress policy to Security Group $groupNameVal" }
         return resp.groupId
     }
 }
