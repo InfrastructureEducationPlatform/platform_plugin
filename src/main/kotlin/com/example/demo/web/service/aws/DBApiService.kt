@@ -1,15 +1,17 @@
-package com.example.demo.web
+package com.example.demo.web.service.aws
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.rds.RdsClient
 import aws.sdk.kotlin.services.rds.model.*
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
+import com.example.demo.web.CustomException
+import com.example.demo.web.ErrorCode
+import com.example.demo.web.RegexObj
 import com.example.demo.web.dto.AwsConfiguration
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.DatabaseOutput
-import com.example.demo.web.service.aws.VpcService
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 
@@ -141,7 +143,7 @@ class DBApiService(
         return publicFQDN
     }
 
-    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?) {
+    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?, awsConfiguration: AwsConfiguration) {
 
         val deleteDbInstanceRequest = DeleteDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -149,7 +151,13 @@ class DBApiService(
             skipFinalSnapshot = true
         }
 
-        RdsClient { region = inputRegion }.use { rdsClient ->
+        RdsClient {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { rdsClient ->
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
             log.info { "The status of the database is ${response.dbInstance?.dbInstanceStatus}" }
         }

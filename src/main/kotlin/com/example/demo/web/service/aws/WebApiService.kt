@@ -1,17 +1,17 @@
-package com.example.demo.web
+package com.example.demo.web.service.aws
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.elasticbeanstalk.ElasticBeanstalkClient
 import aws.sdk.kotlin.services.elasticbeanstalk.model.*
-import aws.smithy.kotlin.runtime.http.response.HttpResponse
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
+import com.example.demo.web.CustomException
+import com.example.demo.web.ErrorCode
+import com.example.demo.web.RegexObj
 import com.example.demo.web.dto.AwsConfiguration
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
 import com.example.demo.web.dto.WebServerOutput
-import com.example.demo.web.service.aws.IamService
-import com.example.demo.web.service.aws.VpcService
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 import java.util.*
@@ -38,7 +38,7 @@ class WebApiService(
     }
 
     suspend fun createEBInstance(block: Block, awsConfiguration: AwsConfiguration): BlockOutput {
-        iamService.createIamRole()
+        iamService.createIamRole(awsConfiguration)
         val applicationRequest = CreateApplicationRequest {
             description = "An AWS Elastic Beanstalk app created using the AWS SDK for Kotlin"
             applicationName = block.name
@@ -169,14 +169,20 @@ class WebApiService(
         return envEndpoint
     }
 
-    suspend fun deleteApp(appName: String?, inputRegion: String?) {
+    suspend fun deleteApp(appName: String?, inputRegion: String?, awsConfiguration: AwsConfiguration) {
 
         val applicationRequest = DeleteApplicationRequest {
             applicationName = appName
             terminateEnvByForce = true
         }
 
-        ElasticBeanstalkClient { region = inputRegion }.use { beanstalkClient ->
+        ElasticBeanstalkClient {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { beanstalkClient ->
             beanstalkClient.deleteApplication(applicationRequest)
             log.info { "The Elastic Beanstalk application was successfully deleted!" }
         }
