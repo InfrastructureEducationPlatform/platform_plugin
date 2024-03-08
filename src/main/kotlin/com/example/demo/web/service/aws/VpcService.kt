@@ -16,7 +16,9 @@ class VpcService {
 
         val vpcId = findOrCreateVpc(ec2Client)
         val subnetIds = createSubnets(ec2Client, vpcId)
+        val internetGatewayId = createInternetGateway(ec2Client, vpcId)
         val securityGroupIds = createSecurityGroups(ec2Client, vpcId)
+        createRouteTable(ec2Client, vpcId, internetGatewayId)
 
         return CreateVpcDto(vpcId, "", subnetIds, securityGroupIds)
     }
@@ -69,7 +71,25 @@ class VpcService {
     }
 
     private suspend fun createSubnets(ec2Client: Ec2Client, vpcId: String): List<String> {
+        val subnetQuery = ec2Client.describeSubnets {
+            filters = listOf(Filter {
+                name = "tag:Name"
+                values = listOf("deployment-subnet")
+            })
+        }
+
         val subnetIds = mutableListOf<String>()
+
+        if (subnetQuery.subnets?.isNotEmpty() == true) {
+            val subnets = subnetQuery.subnets
+            for (subnet in subnets!!) {
+                val subnetId = subnet.subnetId
+                subnetId?.let { subnetIds.add(it) }
+            }
+            return subnetIds
+        }
+
+
         val subnetConfigs = listOf(
             SubnetConfig("10.0.0.0/24", "ap-northeast-2a"),
             SubnetConfig("10.0.1.0/24", "ap-northeast-2a"),
@@ -106,9 +126,44 @@ class VpcService {
         return subnetResponse.subnet?.subnetId ?: throw IllegalStateException("Subnet ID not found")
     }
 
+    private suspend fun createInternetGateway(ec2Client: Ec2Client, vpcId: String): String {
+        val internetGatewayResponse = ec2Client.createInternetGateway {
+            tagSpecifications = listOf(TagSpecification {
+                resourceType = ResourceType.InternetGateway
+                tags = listOf(Tag {
+                    key = "Name"
+                    value = "deployment-internet-gateway"
+                })
+            })
+        }
+
+        ec2Client.attachInternetGateway {
+            this.vpcId = vpcId
+            internetGatewayId = internetGatewayResponse.internetGateway!!.internetGatewayId
+        }
+
+        return internetGatewayResponse.internetGateway!!.internetGatewayId!!
+    }
+
+    private suspend fun createRouteTable(ec2Client: Ec2Client, vpcId: String, internetGatewayId: String) {
+        val routeId = ec2Client.describeRouteTables {
+            filters = listOf(Filter {
+                name = "vpc-id"
+                values = listOf(vpcId)
+            })
+        }.routeTables!![0].routeTableId
+
+        delay(1000)
+        ec2Client.createRoute {
+            routeTableId = routeId
+            destinationCidrBlock = "0.0.0.0/0"
+            gatewayId = internetGatewayId
+        }
+    }
+
     private suspend fun createSecurityGroups(ec2Client: Ec2Client, vpcId: String): List<String> {
-        val vmSgId = createSecurityGroup(ec2Client, "iep-vm-sg", "sg for vm", vpcId, listOf(20, 80))
-        val dbSgId = createSecurityGroup(ec2Client, "iep-db-sg", "sg for db", vpcId, listOf(5432))
+        val vmSgId = createSecurityGroup(ec2Client, "iep-vm-sg", "security group for vm", vpcId, listOf(20, 80))
+        val dbSgId = createSecurityGroup(ec2Client, "iep-db-sg", "security group for db", vpcId, listOf(5432))
         return listOfNotNull(vmSgId, dbSgId)
     }
 
@@ -119,11 +174,30 @@ class VpcService {
         vpcId: String,
         ports: List<Int>
     ): String? {
+        val sgQuery = ec2Client.describeSecurityGroups {
+            filters = listOf(Filter {
+                name = "tag:Name"
+                values = listOf(groupName)
+            })
+        }
+
+        if (sgQuery.securityGroups?.isNotEmpty() == true) {
+            val sg = sgQuery.securityGroups!![0]
+            return sg.groupId ?: throw IllegalStateException("SecurityGroup ID not found")
+        }
+
         delay(1000)
         val request = CreateSecurityGroupRequest {
             this.groupName = groupName
             description = groupDesc
             this.vpcId = vpcId
+            tagSpecifications = listOf(TagSpecification {
+                resourceType = ResourceType.SecurityGroup
+                tags = listOf(Tag {
+                    key = "Name"
+                    value = groupName
+                })
+            })
         }
 
         val resp = ec2Client.createSecurityGroup(request)

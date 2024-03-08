@@ -9,17 +9,12 @@ import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.CustomException
 import com.example.demo.web.ErrorCode
-import com.example.demo.web.dto.AwsConfiguration
-import com.example.demo.web.dto.Block
-import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.VirtualMachineOutput
+import com.example.demo.web.dto.*
 import org.springframework.stereotype.Service
 import kotlin.random.Random
 
 @Service
-class VMApiService(
-        private val vpcService: VpcService
-) {
+class VMApiService {
     suspend fun isValidVmBlock(block: Block) {
         if (block.virtualMachineFeatures == null) {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
@@ -31,8 +26,7 @@ class VMApiService(
         }
     }
 
-    suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String): BlockOutput {
-        val vpc = vpcService.createVpc(awsConfiguration)
+    suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String, vpc: CreateVpcDto): BlockOutput {
         val inputRegion: String = block.virtualMachineFeatures!!.region
 
         try {

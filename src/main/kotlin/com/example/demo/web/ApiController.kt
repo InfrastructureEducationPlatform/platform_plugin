@@ -6,6 +6,7 @@ import com.example.demo.web.dto.RequestSketchDto
 import com.example.demo.web.dto.ResponseSketchDto
 import com.example.demo.web.service.aws.DBApiService
 import com.example.demo.web.service.aws.VMApiService
+import com.example.demo.web.service.aws.VpcService
 import com.example.demo.web.service.aws.WebApiService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -25,7 +26,8 @@ import org.springframework.web.bind.annotation.*
 class ApiController(
     private val vmApiService: VMApiService,
     private val webApiService: WebApiService,
-    private val dbApiService: DBApiService
+    private val dbApiService: DBApiService,
+    private val vpcService: VpcService
 ) {
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "배포 요청 성공", content = [
@@ -56,15 +58,16 @@ class ApiController(
             }
         }
 
+        val vpc = vpcService.createVpc(awsCredential)
         //Service 배포
         val blockOutputDeferredList = mutableListOf<Deferred<BlockOutput>>()
         coroutineScope {
             for (block in sketch.blockList) {
                 val blockOutputDeferred = async {
                     when (block.type) {
-                        "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, block, "ami-0f3a440bbcff3d043")
-                        "webServer" -> webApiService.createEBInstance(block, awsCredential)
-                        "database" -> dbApiService.createDatabaseInstance(block.name, block, awsCredential)
+                        "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, block, "ami-0f3a440bbcff3d043", vpc)
+                        "webServer" -> webApiService.createEBInstance(block, awsCredential, vpc)
+                        "database" -> dbApiService.createDatabaseInstance(block.name, block, awsCredential, vpc)
                         else -> {
                             throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
                         }

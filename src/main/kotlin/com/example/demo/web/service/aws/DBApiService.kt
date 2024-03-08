@@ -8,17 +8,12 @@ import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.CustomException
 import com.example.demo.web.ErrorCode
 import com.example.demo.web.RegexObj
-import com.example.demo.web.dto.AwsConfiguration
-import com.example.demo.web.dto.Block
-import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.DatabaseOutput
+import com.example.demo.web.dto.*
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 
 @Service
-class DBApiService(
-        private val vpcService: VpcService
-) {
+class DBApiService {
     suspend fun isValidDbBlock(block: Block) {
         if (block.databaseFeatures == null) {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
@@ -43,9 +38,9 @@ class DBApiService(
     suspend fun createDatabaseInstance(
             dbInstanceIdentifierVal: String?,
             block: Block,
-            awsConfiguration: AwsConfiguration
+            awsConfiguration: AwsConfiguration,
+            vpc: CreateVpcDto
     ): BlockOutput {
-        val vpc = vpcService.createVpc(awsConfiguration)
         val dbFeatures = block.databaseFeatures!!
         val inputRegion = "ap-northeast-2"
         val masterUsernameVal = dbFeatures.masterUsername

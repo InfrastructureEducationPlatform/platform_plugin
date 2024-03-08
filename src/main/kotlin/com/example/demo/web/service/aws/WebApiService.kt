@@ -8,10 +8,7 @@ import com.example.demo.utils.CommonUtils.log
 import com.example.demo.web.CustomException
 import com.example.demo.web.ErrorCode
 import com.example.demo.web.RegexObj
-import com.example.demo.web.dto.AwsConfiguration
-import com.example.demo.web.dto.Block
-import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.WebServerOutput
+import com.example.demo.web.dto.*
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 import java.util.*
@@ -19,7 +16,6 @@ import java.util.*
 
 @Service
 class WebApiService(
-    private val vpcService: VpcService,
     private val iamService: IamService
 ) {
     suspend fun isValidWebBlock(block: Block) {
@@ -37,7 +33,7 @@ class WebApiService(
         }
     }
 
-    suspend fun createEBInstance(block: Block, awsConfiguration: AwsConfiguration): BlockOutput {
+    suspend fun createEBInstance(block: Block, awsConfiguration: AwsConfiguration, vpc: CreateVpcDto): BlockOutput {
         iamService.createIamRole(awsConfiguration)
         val applicationRequest = CreateApplicationRequest {
             description = "An AWS Elastic Beanstalk app created using the AWS SDK for Kotlin"
@@ -68,7 +64,7 @@ class WebApiService(
                     if (appName.length < 36) "$appName-env"
                     else appName.substring(0 until 36) + "-env"
 
-            val endpoint: String = createEBEnvironment(envName, block.name, inputRegion, awsConfiguration)
+            val endpoint: String = createEBEnvironment(envName, block.name, inputRegion, awsConfiguration, vpc)
             val ebOutput = WebServerOutput(block.name, endpoint)
 
             return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
@@ -80,8 +76,7 @@ class WebApiService(
 
     }
 
-    suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?, awsConfiguration: AwsConfiguration): String {
-        val vpc = vpcService.createVpc(awsConfiguration)
+    suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?, awsConfiguration: AwsConfiguration, vpc: CreateVpcDto): String {
         val setting1 = ConfigurationOptionSetting {
             namespace = "aws:autoscaling:launchconfiguration"
             optionName = "IamInstanceProfile"
