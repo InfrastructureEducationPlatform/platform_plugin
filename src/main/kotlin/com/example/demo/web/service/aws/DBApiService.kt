@@ -1,25 +1,19 @@
-package com.example.demo.web
+package com.example.demo.web.service.aws
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.rds.RdsClient
-import aws.sdk.kotlin.services.rds.model.CreateDbInstanceRequest
-import aws.sdk.kotlin.services.rds.model.DeleteDbInstanceRequest
-import aws.sdk.kotlin.services.rds.model.DescribeDbInstancesRequest
-import aws.sdk.kotlin.services.rds.model.RdsException
+import aws.sdk.kotlin.services.rds.model.*
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
-import com.example.demo.web.dto.AwsConfiguration
-import com.example.demo.web.dto.Block
-import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.DatabaseOutput
-import com.example.demo.web.service.aws.VpcService
+import com.example.demo.web.CustomException
+import com.example.demo.web.ErrorCode
+import com.example.demo.web.RegexObj
+import com.example.demo.web.dto.*
 import kotlinx.coroutines.delay
 import org.springframework.stereotype.Service
 
 @Service
-class DBApiService(
-        private val vpcService: VpcService
-) {
+class DBApiService {
     suspend fun isValidDbBlock(block: Block) {
         if (block.databaseFeatures == null) {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
@@ -44,13 +38,14 @@ class DBApiService(
     suspend fun createDatabaseInstance(
             dbInstanceIdentifierVal: String?,
             block: Block,
-            awsConfiguration: AwsConfiguration
+            awsConfiguration: AwsConfiguration,
+            vpc: CreateVpcDto
     ): BlockOutput {
-        val vpc = vpcService.createVpc(awsConfiguration)
         val dbFeatures = block.databaseFeatures!!
         val inputRegion = "ap-northeast-2"
         val masterUsernameVal = dbFeatures.masterUsername
         val masterUserPasswordVal = dbFeatures.masterUserPassword
+        val dbSubnetGroupNameVal = "iep-db-subnet-group"
 
         val instanceRequest = CreateDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -62,7 +57,9 @@ class DBApiService(
             storageType = "standard"
             masterUsername = masterUsernameVal
             masterUserPassword = masterUserPasswordVal
-            dbSecurityGroups = listOf("test-poc")
+            dbSubnetGroupName = dbSubnetGroupNameVal
+            vpcSecurityGroupIds = listOf(vpc.securityGroupIds[1])
+            publiclyAccessible = true
         }
 
         try {
@@ -73,7 +70,21 @@ class DBApiService(
                     secretAccessKey = awsConfiguration.secretAccessKey
                 }
             }.use { rdsClient ->
+                try {
+                    val instanceSubnetRequest = CreateDbSubnetGroupRequest {
+                        subnetIds = vpc.subnetIds
+                        dbSubnetGroupName = dbSubnetGroupNameVal
+                        dbSubnetGroupDescription = "iep-db subnet group"
+                    }
+                    rdsClient.createDbSubnetGroup(instanceSubnetRequest)
+                }catch (e:DbSubnetGroupAlreadyExistsFault) {
+                    log.info {"$dbSubnetGroupNameVal is already exist"}
+                }
+
+
+                delay(1000)
                 val response = rdsClient.createDbInstance(instanceRequest)
+
                 log.info { "The status is ${response.dbInstance?.dbInstanceStatus}" }
             }
             val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion, awsConfiguration)
@@ -114,7 +125,7 @@ class DBApiService(
                         instanceReadyStr = instance.dbInstanceStatus.toString()
                         if (instanceReadyStr.contains("available")) {
                             instanceReady = true
-                            publicFQDN = instance.endpoint?.address + instance.endpoint?.port
+                            publicFQDN = instance.endpoint?.address + ":" + instance.endpoint?.port
                         } else {
                             log.info { "...$instanceReadyStr" }
                             delay(sleepTime * 1000)
@@ -127,7 +138,7 @@ class DBApiService(
         return publicFQDN
     }
 
-    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?) {
+    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?, awsConfiguration: AwsConfiguration) {
 
         val deleteDbInstanceRequest = DeleteDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -135,7 +146,13 @@ class DBApiService(
             skipFinalSnapshot = true
         }
 
-        RdsClient { region = inputRegion }.use { rdsClient ->
+        RdsClient {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { rdsClient ->
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
             log.info { "The status of the database is ${response.dbInstance?.dbInstanceStatus}" }
         }

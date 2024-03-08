@@ -1,4 +1,4 @@
-package com.example.demo.web
+package com.example.demo.web.service.aws
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
@@ -7,18 +7,14 @@ import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
 import aws.smithy.kotlin.runtime.retries.getOrThrow
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
-import com.example.demo.web.dto.AwsConfiguration
-import com.example.demo.web.dto.Block
-import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.VirtualMachineOutput
-import com.example.demo.web.service.aws.VpcService
+import com.example.demo.web.CustomException
+import com.example.demo.web.ErrorCode
+import com.example.demo.web.dto.*
 import org.springframework.stereotype.Service
 import kotlin.random.Random
 
 @Service
-class VMApiService(
-        private val vpcService: VpcService
-) {
+class VMApiService {
     suspend fun isValidVmBlock(block: Block) {
         if (block.virtualMachineFeatures == null) {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
@@ -30,8 +26,7 @@ class VMApiService(
         }
     }
 
-    suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String): BlockOutput {
-        val vpcAndSubnet = vpcService.createVpc(awsConfiguration)
+    suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String, vpc: CreateVpcDto): BlockOutput {
         val inputRegion: String = block.virtualMachineFeatures!!.region
 
         try {
@@ -58,8 +53,8 @@ class VMApiService(
                             InstanceNetworkInterfaceSpecification {
                                 associatePublicIpAddress = true
                                 deviceIndex = 0
-                                subnetId = vpcAndSubnet.subnetIds[0]
-                                this.groups = listOf("sg-0b0a9bd3267e89e92")
+                                subnetId = vpc.subnetIds[0]
+                                groups = listOf(vpc.securityGroupIds[0])
                             }
                     )
                 }
@@ -93,12 +88,18 @@ class VMApiService(
 
     }
 
-    suspend fun startInstanceSc(instanceId: String, inputRegion: String) {
+    suspend fun startInstanceSc(instanceId: String, inputRegion: String, awsConfiguration: AwsConfiguration) {
         val request = StartInstancesRequest {
             instanceIds = listOf(instanceId)
         }
 
-        Ec2Client { region = inputRegion }.use { ec2 ->
+        Ec2Client {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { ec2 ->
             ec2.startInstances(request)
             log.info { "Waiting until instance $instanceId starts. This will take a few minutes." }
             ec2.waitUntilInstanceRunning { // suspend call
@@ -108,18 +109,23 @@ class VMApiService(
         }
     }
 
-    suspend fun terminateEC2(instanceID: String, inputRegion: String) {
+    suspend fun terminateEC2(instanceID: String, inputRegion: String, awsConfiguration: AwsConfiguration) {
 
         val request = TerminateInstancesRequest {
             instanceIds = listOf(instanceID)
         }
 
-        Ec2Client { region = inputRegion }.use { ec2 ->
+        Ec2Client {
+            region = inputRegion
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { ec2 ->
             val response = ec2.terminateInstances(request)
             response.terminatingInstances?.forEach { instance ->
                 log.info { "The ID of the terminated instance is ${instance.instanceId}" }
             }
         }
     }
-
 }
