@@ -21,14 +21,12 @@ class VMApiService {
         }
         val vmFeatures = block.virtualMachineFeatures!!
 
-        if (vmFeatures.region == "" || vmFeatures.osType == "" || vmFeatures.tier == "") {
+        if (vmFeatures.osType == "" || vmFeatures.tier == "") {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
         }
     }
 
     suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String, vpc: CreateVpcDto): BlockOutput {
-        val inputRegion: String = block.virtualMachineFeatures!!.region
-
         try {
             Ec2Client {
                 region = awsConfiguration.region
@@ -79,7 +77,7 @@ class VMApiService {
 
                 log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
                 val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-                return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
+                return BlockOutput(block.id, block.type, vmOutput, null, null)
             }
         } catch (ex: Ec2Exception) {
             CommonUtils.handleAwsException(ex)
@@ -88,13 +86,13 @@ class VMApiService {
 
     }
 
-    suspend fun startInstanceSc(instanceId: String, inputRegion: String, awsConfiguration: AwsConfiguration) {
+    suspend fun startInstanceSc(instanceId: String, awsConfiguration: AwsConfiguration) {
         val request = StartInstancesRequest {
             instanceIds = listOf(instanceId)
         }
 
         Ec2Client {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey
@@ -109,14 +107,14 @@ class VMApiService {
         }
     }
 
-    suspend fun terminateEC2(instanceID: String, inputRegion: String, awsConfiguration: AwsConfiguration) {
+    suspend fun terminateEC2(instanceID: String, awsConfiguration: AwsConfiguration) {
 
         val request = TerminateInstancesRequest {
             instanceIds = listOf(instanceID)
         }
 
         Ec2Client {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey

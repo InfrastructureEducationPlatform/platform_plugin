@@ -86,7 +86,7 @@ class ApiController(
     suspend fun vmDelete(@Parameter(description = "VM 인스턴스 ID", required = true) @RequestParam("instanceID") instanceId: String,
                          @Parameter(description = "VM 생성 지역", required = true) @RequestParam("region", defaultValue = "us-east-1") region: String,
                          @Parameter(description = "AWS config", required = true) awsConfiguration: AwsConfiguration) {
-        vmApiService.terminateEC2(instanceId, region, awsConfiguration)
+        vmApiService.terminateEC2(instanceId, awsConfiguration)
     }
 
     @DeleteMapping("/sketch/web")
@@ -94,7 +94,7 @@ class ApiController(
     suspend fun webDelete(@Parameter(description = "웹 서버 이름", required = true) @RequestParam("name") appName: String,
                           @Parameter(description = "웹 생성 지역", required = true) @RequestParam("region", defaultValue = "us-east-1") region: String,
                           @Parameter(description = "AWS config", required = true) awsConfiguration: AwsConfiguration) {
-        webApiService.deleteApp(appName, region, awsConfiguration)
+        webApiService.deleteApp(appName, awsConfiguration)
     }
 
     @DeleteMapping("/sketch/db")
@@ -102,7 +102,7 @@ class ApiController(
     suspend fun dbDelete(@Parameter(description = "삭제 요청 DB 식별자", required = true) @RequestParam("dbInstanceIdentifierVal") dbInstanceIdentifierVal: String,
                          @Parameter(description = "DB 생성 지역", required = true) @RequestParam("region", defaultValue = "us-east-1") region: String,
                          @Parameter(description = "AWS config", required = true) awsConfiguration: AwsConfiguration) {
-        dbApiService.deleteDatabaseInstance(dbInstanceIdentifierVal, region, awsConfiguration)
+        dbApiService.deleteDatabaseInstance(dbInstanceIdentifierVal, awsConfiguration)
     }
 
 }
