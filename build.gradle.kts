@@ -19,6 +19,7 @@ repositories {
 }
 
 dependencies {
+	implementation("io.fabric8:kubernetes-client:6.10.0")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")

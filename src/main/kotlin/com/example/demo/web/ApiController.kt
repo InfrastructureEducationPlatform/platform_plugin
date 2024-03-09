@@ -8,6 +8,8 @@ import com.example.demo.web.service.aws.DBApiService
 import com.example.demo.web.service.aws.VMApiService
 import com.example.demo.web.service.aws.VpcService
 import com.example.demo.web.service.aws.WebApiService
+import com.example.demo.web.service.kubernetes.KubernetesLoadBalancerService
+import com.example.demo.web.service.kubernetes.KubernetesVMApiService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.ArraySchema
@@ -27,7 +29,9 @@ class ApiController(
     private val vmApiService: VMApiService,
     private val webApiService: WebApiService,
     private val dbApiService: DBApiService,
-    private val vpcService: VpcService
+    private val vpcService: VpcService,
+    private val kubernetesLoadBalancerService: KubernetesLoadBalancerService,
+    private val kubernetesVMApiService: KubernetesVMApiService
 ) {
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "배포 요청 성공", content = [
@@ -49,6 +53,7 @@ class ApiController(
         //Service 가능 여부 체크
         for (block in sketch.blockList) {
             when (block.type) {
+                "k8sVM" -> {}
                 "virtualMachine" -> vmApiService.isValidVmBlock(block)
                 "webServer" -> webApiService.isValidWebBlock(block)
                 "database" -> dbApiService.isValidDbBlock(block)
@@ -59,12 +64,15 @@ class ApiController(
         }
 
         val vpc = vpcService.createVpc(awsCredential)
+        kubernetesLoadBalancerService.createLoadBalancer()
+
         //Service 배포
         val blockOutputDeferredList = mutableListOf<Deferred<BlockOutput>>()
         coroutineScope {
             for (block in sketch.blockList) {
                 val blockOutputDeferred = async {
                     when (block.type) {
+                        "k8sVM" -> kubernetesVMApiService.createKubernetesVM(block)
                         "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, block, "ami-0f3a440bbcff3d043", vpc)
                         "webServer" -> webApiService.createEBInstance(block, awsCredential, vpc)
                         "database" -> dbApiService.createDatabaseInstance(block.name, block, awsCredential, vpc)
