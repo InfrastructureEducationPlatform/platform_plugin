@@ -113,8 +113,9 @@ class VMApiService {
             })
         }
         val responseInstances = ec2Client.describeInstances(requestInstances)
-        if(responseInstances.reservations?.get(0)?.instances == null) return false
-
+        if(responseInstances.reservations.isNullOrEmpty()) return false
+        if(responseInstances.reservations!![0].instances.isNullOrEmpty()) return false
+        
         val instanceId = responseInstances.reservations!![0].instances!![0].instanceId!!
         terminateEC2(instanceId, awsConfiguration)
 
