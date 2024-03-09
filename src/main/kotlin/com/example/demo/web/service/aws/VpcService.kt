@@ -23,6 +23,31 @@ class VpcService {
         return CreateVpcDto(vpcId, "", subnetIds, securityGroupIds)
     }
 
+    suspend fun deleteVpc(awsConfiguration: AwsConfiguration) {
+        delay(1000)
+        val ec2Client = createEc2Client(awsConfiguration)
+
+        val vpcQuery = ec2Client.describeVpcs {
+            filters = listOf(Filter {
+                name = "tag:Name"
+                values = listOf("deployment-vpc")
+            })
+        }
+
+        if (vpcQuery.vpcs?.isEmpty() == true) return
+
+        val vpc = vpcQuery.vpcs!![0]
+        vpc.vpcId ?: throw IllegalStateException("VPC ID not found")
+
+        deleteSecurityGroups(ec2Client, vpc.vpcId!!)
+        deleteSubnets(ec2Client, vpc.vpcId!!)
+        deleteRouteTable(ec2Client, vpc.vpcId!!)
+        deleteInternetGateway(ec2Client, vpc.vpcId!!)
+        ec2Client.deleteVpc {
+            this.vpcId = vpc.vpcId
+        }
+    }
+
     private fun createEc2Client(awsConfiguration: AwsConfiguration): Ec2Client {
         return Ec2Client {
             region = awsConfiguration.region
@@ -176,8 +201,11 @@ class VpcService {
     ): String? {
         val sgQuery = ec2Client.describeSecurityGroups {
             filters = listOf(Filter {
-                name = "tag:Name"
+                name = "group-name"
                 values = listOf(groupName)
+            },Filter {
+                name = "vpc-id"
+                values = listOf(vpcId)
             })
         }
 
@@ -195,7 +223,7 @@ class VpcService {
                 resourceType = ResourceType.SecurityGroup
                 tags = listOf(Tag {
                     key = "Name"
-                    value = groupName
+                    value = "deployment-security-group"
                 })
             })
         }
@@ -224,6 +252,93 @@ class VpcService {
         log.info { "Successfully added ingress policy to Security Group $groupName" }
         return resp.groupId
     }
+
+    private suspend fun deleteSecurityGroups(
+        ec2Client: Ec2Client,
+        vpcId: String
+    ) {
+        val sgQuery = ec2Client.describeSecurityGroups {
+            filters = listOf(Filter {
+                name = "vpc-id"
+                values = listOf(vpcId)
+            }, Filter {
+                name = "tag:Name"
+                values = listOf("deployment-security-group")
+            })
+        }
+
+        if (sgQuery.securityGroups.isNullOrEmpty()) return
+
+        val securityGroups = sgQuery.securityGroups!!
+
+        for(securityGroup in securityGroups) {
+            ec2Client.deleteSecurityGroup {
+                this.groupId = securityGroup.groupId
+            }
+        }
+    }
+
+    private suspend fun deleteSubnets(ec2Client: Ec2Client, vpcId: String) {
+        val subnetQuery = ec2Client.describeSubnets {
+            filters = listOf(Filter {
+                name = "vpc-id"
+                values = listOf(vpcId)
+            })
+        }
+
+        val subnetIds = mutableListOf<String>()
+
+        if(subnetQuery.subnets.isNullOrEmpty()) return
+
+        val subnets = subnetQuery.subnets
+        for (subnet in subnets!!) {
+            val subnetId = subnet.subnetId
+            subnetId?.let { subnetIds.add(it) }
+        }
+
+        for(subnetId in subnetIds) {
+            ec2Client.deleteSubnet {
+                this.subnetId = subnetId
+            }
+        }
+    }
+    private suspend fun deleteRouteTable(ec2Client: Ec2Client, vpcId: String) {
+        val rtbQuery = ec2Client.describeRouteTables {
+            filters = listOf(Filter {
+                name = "vpc-id"
+                values = listOf(vpcId)
+            }, Filter {
+                name = "tag:Name"
+                values = listOf("deployment-rtb")
+            })
+        }
+        if (rtbQuery.routeTables.isNullOrEmpty()) return
+        ec2Client.deleteRouteTable {
+            this.routeTableId = rtbQuery.routeTables!![0].routeTableId
+        }
+    }
+
+    private suspend fun deleteInternetGateway(ec2Client: Ec2Client, vpcId: String) {
+        val igwQuery = ec2Client.describeInternetGateways {
+            filters = listOf(Filter {
+                name = "tag:Name"
+                values = listOf("deployment-internet-gateway")
+            })
+        }
+        if (igwQuery.internetGateways.isNullOrEmpty()) return
+
+        val internetGatewayId = igwQuery.internetGateways!![0].internetGatewayId
+        ec2Client.detachInternetGateway {
+            this.vpcId = vpcId
+            this.internetGatewayId = internetGatewayId
+        }
+
+        ec2Client.deleteInternetGateway {
+            this.internetGatewayId = internetGatewayId
+        }
+    }
+
+
 
     private data class SubnetConfig(val cidrBlock: String, val availabilityZone: String)
 }

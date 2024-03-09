@@ -159,8 +159,65 @@ class WebApiService(
             val instanceList = response.environments
 
             envEndpoint = instanceList?.get(0)?.endpointUrl.toString()
+            log.info { "$envName is available!" }
         }
         return envEndpoint
+    }
+
+    suspend fun deleteWebServer(block: Block, awsConfiguration: AwsConfiguration): Boolean {
+        val envNames = mutableListOf<String>()
+        ElasticBeanstalkClient {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { beanstalkClient ->
+            val request = DescribeEnvironmentsRequest {
+                applicationName = block.name
+            }
+            val response = beanstalkClient.describeEnvironments(request)
+            for(env in response.environments!!) {
+                env.environmentName?.let { envNames.add(it) }
+            }
+        }
+        deleteApp(block.name, awsConfiguration)
+        waitForEnvTerminated(envNames, awsConfiguration)
+
+        return false
+    }
+
+    suspend fun waitForEnvTerminated(envNames: List<String>, awsConfiguration: AwsConfiguration) {
+        val sleepTime: Long = 20
+        var instanceTerminated = false
+        var instanceReadyStr: String
+
+        val instanceRequest = DescribeEnvironmentsRequest {
+            environmentNames = envNames
+        }
+
+        ElasticBeanstalkClient {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { beanstalkClient ->
+            while (!instanceTerminated) {
+                val response = beanstalkClient.describeEnvironments(instanceRequest)
+                val instanceList = response.environments
+                if(instanceList.isNullOrEmpty()) break
+                instanceReadyStr = instanceList[0].status?.value.toString()
+                if (instanceReadyStr.contains("Terminated")) {
+                    instanceTerminated = true
+                } else {
+                    log.info { "...$instanceReadyStr" }
+                    delay(sleepTime * 1000)
+                }
+            }
+            delay(1000)
+            log.info {"The Elastic Beanstalk Environment was successfully terminated!"}
+        }
     }
 
     suspend fun deleteApp(appName: String?, awsConfiguration: AwsConfiguration) {

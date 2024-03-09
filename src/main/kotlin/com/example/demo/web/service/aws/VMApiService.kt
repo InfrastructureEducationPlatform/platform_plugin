@@ -4,6 +4,7 @@ import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
+import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceTerminated
 import aws.smithy.kotlin.runtime.retries.getOrThrow
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
@@ -38,6 +39,13 @@ class VMApiService {
             }.use { ec2 ->
                 val keyPairRequest = CreateKeyPairRequest {
                     keyName = "aws-keypair-${Random.nextInt(1000)}"
+                    tagSpecifications = listOf(TagSpecification{
+                        resourceType = ResourceType.KeyPair
+                        this.tags = listOf(Tag{
+                            key = "BlockId"
+                            value = block.id
+                        })
+                    })
                 }
                 val keyPairResponse = ec2.createKeyPair(keyPairRequest)
 
@@ -58,14 +66,18 @@ class VMApiService {
                 }
                 val response = ec2.runInstances(request)
                 val instanceId = response.instances?.get(0)?.instanceId
-                val tag = Tag {
+                val tag1 = Tag {
                     key = "Name"
                     value = block.name
+                }
+                val tag2 =  Tag {
+                    key = "BlockId"
+                    value = block.id
                 }
 
                 val requestTags = CreateTagsRequest {
                     resources = listOf(instanceId.toString())
-                    tags = listOf(tag)
+                    tags = listOf(tag1, tag2)
                 }
                 ec2.createTags(requestTags)
                 val waitResponse = ec2.waitUntilInstanceRunning { // suspend call
@@ -84,6 +96,46 @@ class VMApiService {
             throw CustomException(ErrorCode.SKETCH_DEPLOYMENT_FAIL)
         }
 
+    }
+
+    suspend fun deleteVm(block: Block, awsConfiguration: AwsConfiguration): Boolean {
+        val ec2Client = Ec2Client {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }
+        val requestInstances = DescribeInstancesRequest {
+            filters = listOf(Filter{
+                name = "tag:BlockId"
+                values = listOf(block.id)
+            })
+        }
+        val responseInstances = ec2Client.describeInstances(requestInstances)
+        if(responseInstances.reservations?.get(0)?.instances == null) return false
+
+        val instanceId = responseInstances.reservations!![0].instances!![0].instanceId!!
+        terminateEC2(instanceId, awsConfiguration)
+
+        ec2Client.waitUntilInstanceTerminated {
+            instanceIds = listOf(instanceId)
+        }
+
+        val keyPairRequest = DescribeKeyPairsRequest {
+            filters = listOf(Filter{
+                name = "tag:BlockId"
+                values = listOf(block.id)
+            })
+        }
+
+        val keyPairResponse = ec2Client.describeKeyPairs(keyPairRequest)
+        if(keyPairResponse.keyPairs.isNullOrEmpty()) return true
+        ec2Client.deleteKeyPair(DeleteKeyPairRequest {
+            keyPairId = keyPairResponse.keyPairs!![0].keyPairId
+        })
+
+        return true
     }
 
     suspend fun startInstanceSc(instanceId: String, awsConfiguration: AwsConfiguration) {

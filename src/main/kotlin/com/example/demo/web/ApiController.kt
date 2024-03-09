@@ -81,6 +81,59 @@ class ApiController(
         return ResponseSketchDto(sketch.sketchId, sketch.blockList, blockOutputList)
     }
 
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "배포 요청 성공", content = [
+            Content(mediaType = "application/json", array = ArraySchema(schema = Schema(implementation = ResponseSketchDto::class)))
+        ]),
+        ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
+    ])
+    @Operation(summary = "Sketch 배포 테스트 API")
+    @DeleteMapping("/sketch/deployment")
+    suspend fun deleteDeployment(@RequestBody sketch: RequestSketchDto) {
+        // Create AWS Credential
+        // {"Region": "Default Region Code(i.e: ap-northeast-2)", "AccessKey": "Access Key ID", "SecretKey": "Access Secret Key"}
+        val awsCredential = AwsConfiguration(
+            region = sketch.pluginInstallationInformation["Region"].asText(),
+            accessKeyId = sketch.pluginInstallationInformation["AccessKey"].asText(),
+            secretAccessKey = sketch.pluginInstallationInformation["SecretKey"].asText()
+        )
+
+
+
+        //Service 가능 여부 체크
+        for (block in sketch.blockList) {
+            when (block.type) {
+                "virtualMachine" -> vmApiService.isValidVmBlock(block)
+                "webServer" -> webApiService.isValidWebBlock(block)
+                "database" -> dbApiService.isValidDbBlock(block)
+                else -> {
+                    throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
+                }
+            }
+        }
+
+        //배포 삭제
+        val blockOutputDeferredList = mutableListOf<Deferred<Boolean>>()
+        coroutineScope {
+            for (block in sketch.blockList) {
+                val blockOutputDeferred = async {
+                    when (block.type) {
+                        "virtualMachine" -> vmApiService.deleteVm(block, awsCredential)
+                        "webServer" -> webApiService.deleteWebServer(block, awsCredential)
+                        "database" -> dbApiService.deleteDb(block, awsCredential)
+                        else -> {
+                            throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
+                        }
+                    }
+                }
+                blockOutputDeferredList.add(blockOutputDeferred)
+            }
+        }
+        val blockOutputList = blockOutputDeferredList.map { it.await() }
+        vpcService.deleteVpc(awsCredential)
+        return
+    }
+
     @DeleteMapping("/sketch/vm")
     @Operation(summary = "VM 삭제", description = "VM 인스턴스를 삭제합니다.")
     suspend fun vmDelete(@Parameter(description = "VM 인스턴스 ID", required = true) @RequestParam("instanceID") instanceId: String,

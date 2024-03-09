@@ -137,6 +137,68 @@ class DBApiService {
         return publicFQDN
     }
 
+    suspend fun deleteDb(block: Block, awsConfiguration: AwsConfiguration):Boolean {
+        val dbSubnetGroupNameVal = "iep-db-subnet-group"
+        try {
+            deleteDatabaseInstance(block.name, awsConfiguration)
+        } catch (_:DbInstanceNotFoundFault) {
+            log.info { "${block.name} db is already deleted" }
+        }
+
+        try {
+            RdsClient {
+                region = awsConfiguration.region
+                credentialsProvider = StaticCredentialsProvider {
+                    accessKeyId = awsConfiguration.accessKeyId
+                    secretAccessKey = awsConfiguration.secretAccessKey
+                }
+            }.use { rdsClient ->
+                val instanceSubnetRequest = DeleteDbSubnetGroupRequest {
+                    dbSubnetGroupName = dbSubnetGroupNameVal
+                }
+                rdsClient.deleteDbSubnetGroup(instanceSubnetRequest)
+            }
+        } catch (_:DbSubnetGroupNotFoundFault) {
+            log.info { "$dbSubnetGroupNameVal is already deleted" }
+        }
+
+        return true
+    }
+
+    private suspend fun waitForInstanceDeleted(dbInstanceIdentifierVal: String?, awsConfiguration: AwsConfiguration) {
+        val sleepTime: Long = 20
+        var instanceDeleted = false
+        log.info { "Waiting for instance deletion to complete." }
+
+        val instanceRequest = DescribeDbInstancesRequest {
+            dbInstanceIdentifier = dbInstanceIdentifierVal
+        }
+
+        val rdsClient = RdsClient {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }
+
+        try {
+            while(true) {
+                val response = rdsClient.describeDbInstances(instanceRequest)
+                val instanceList = response.dbInstances
+                if (instanceList.isNullOrEmpty()) break
+                else {
+                    log.info { "...DB Deleting" }
+                    delay(sleepTime * 1000)
+                }
+            }
+        } catch (_:DbInstanceNotFoundFault) {
+
+        } finally {
+            log.info { "Database instance deletion complete!" }
+        }
+    }
+
     suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, awsConfiguration: AwsConfiguration) {
 
         val deleteDbInstanceRequest = DeleteDbInstanceRequest {
@@ -155,6 +217,8 @@ class DBApiService {
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
             log.info { "The status of the database is ${response.dbInstance?.dbInstanceStatus}" }
         }
+
+        waitForInstanceDeleted(dbInstanceIdentifierVal, awsConfiguration)
     }
 
 }
