@@ -15,9 +15,16 @@ import org.springframework.stereotype.Service
 @Service
 class IamService {
     suspend fun createIamRole(awsConfiguration: AwsConfiguration) {
-
-        createElasticBeanstalkEC2Role("aws-elasticbeanstalk-ec2-role", awsConfiguration)
-        createElasticBeanstalkServiceRole("aws-elasticbeanstalk-service-role", awsConfiguration)
+        try {
+            createElasticBeanstalkEC2Role("aws-elasticbeanstalk-ec2-role", awsConfiguration)
+        } catch (_:EntityAlreadyExistsException) {
+            log.info { "aws-elasticbeanstalk-ec2-role is already exist" }
+        }
+        try {
+            createElasticBeanstalkServiceRole("aws-elasticbeanstalk-service-role", awsConfiguration)
+        } catch (_:EntityAlreadyExistsException) {
+            log.info { "aws-elasticbeanstalk-service-role is already exist" }
+        }
     }
     private suspend fun createElasticBeanstalkEC2Role(roleName: String, awsConfiguration: AwsConfiguration) {
         val jsonString = """

@@ -19,7 +19,7 @@ class DBApiService {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
         }
         val dbFeatures = block.databaseFeatures!!
-        if (dbFeatures.region == "" || dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
+        if (dbFeatures.tier == "" || dbFeatures.masterUsername == "" || dbFeatures.masterUserPassword == "") {
             throw CustomException(ErrorCode.INVALID_DB_FEATURES)
         }
 
@@ -42,7 +42,6 @@ class DBApiService {
             vpc: CreateVpcDto
     ): BlockOutput {
         val dbFeatures = block.databaseFeatures!!
-        val inputRegion = "ap-northeast-2"
         val masterUsernameVal = dbFeatures.masterUsername
         val masterUserPasswordVal = dbFeatures.masterUserPassword
         val dbSubnetGroupNameVal = "iep-db-subnet-group"
@@ -64,7 +63,7 @@ class DBApiService {
 
         try {
             RdsClient {
-                region = inputRegion
+                region = awsConfiguration.region
                 credentialsProvider = StaticCredentialsProvider {
                     accessKeyId = awsConfiguration.accessKeyId
                     secretAccessKey = awsConfiguration.secretAccessKey
@@ -87,11 +86,11 @@ class DBApiService {
 
                 log.info { "The status is ${response.dbInstance?.dbInstanceStatus}" }
             }
-            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, inputRegion, awsConfiguration)
+            val publicFQDN = waitForInstanceReady(dbInstanceIdentifierVal, awsConfiguration)
             val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
                     masterUserPasswordVal
             )
-            return BlockOutput(block.id, block.type, inputRegion, null, null, rdsOutput)
+            return BlockOutput(block.id, block.type, null, null, rdsOutput)
         } catch (ex: RdsException) {
             CommonUtils.handleAwsException(ex)
 
@@ -99,7 +98,7 @@ class DBApiService {
         }
     }
 
-    suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, inputRegion: String?, awsConfiguration: AwsConfiguration): String {
+    suspend fun waitForInstanceReady(dbInstanceIdentifierVal: String?, awsConfiguration: AwsConfiguration): String {
         val sleepTime: Long = 20
         var instanceReady = false
         var instanceReadyStr: String
@@ -111,7 +110,7 @@ class DBApiService {
 
         var publicFQDN = ""
         RdsClient {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey
@@ -138,7 +137,69 @@ class DBApiService {
         return publicFQDN
     }
 
-    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, inputRegion: String?, awsConfiguration: AwsConfiguration) {
+    suspend fun deleteDb(block: Block, awsConfiguration: AwsConfiguration):Boolean {
+        val dbSubnetGroupNameVal = "iep-db-subnet-group"
+        try {
+            deleteDatabaseInstance(block.name, awsConfiguration)
+        } catch (_:DbInstanceNotFoundFault) {
+            log.info { "${block.name} db is already deleted" }
+        }
+
+        try {
+            RdsClient {
+                region = awsConfiguration.region
+                credentialsProvider = StaticCredentialsProvider {
+                    accessKeyId = awsConfiguration.accessKeyId
+                    secretAccessKey = awsConfiguration.secretAccessKey
+                }
+            }.use { rdsClient ->
+                val instanceSubnetRequest = DeleteDbSubnetGroupRequest {
+                    dbSubnetGroupName = dbSubnetGroupNameVal
+                }
+                rdsClient.deleteDbSubnetGroup(instanceSubnetRequest)
+            }
+        } catch (_:DbSubnetGroupNotFoundFault) {
+            log.info { "$dbSubnetGroupNameVal is already deleted" }
+        }
+
+        return true
+    }
+
+    private suspend fun waitForInstanceDeleted(dbInstanceIdentifierVal: String?, awsConfiguration: AwsConfiguration) {
+        val sleepTime: Long = 20
+        var instanceDeleted = false
+        log.info { "Waiting for instance deletion to complete." }
+
+        val instanceRequest = DescribeDbInstancesRequest {
+            dbInstanceIdentifier = dbInstanceIdentifierVal
+        }
+
+        val rdsClient = RdsClient {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }
+
+        try {
+            while(true) {
+                val response = rdsClient.describeDbInstances(instanceRequest)
+                val instanceList = response.dbInstances
+                if (instanceList.isNullOrEmpty()) break
+                else {
+                    log.info { "...DB Deleting" }
+                    delay(sleepTime * 1000)
+                }
+            }
+        } catch (_:DbInstanceNotFoundFault) {
+
+        } finally {
+            log.info { "Database instance deletion complete!" }
+        }
+    }
+
+    suspend fun deleteDatabaseInstance(dbInstanceIdentifierVal: String?, awsConfiguration: AwsConfiguration) {
 
         val deleteDbInstanceRequest = DeleteDbInstanceRequest {
             dbInstanceIdentifier = dbInstanceIdentifierVal
@@ -147,7 +208,7 @@ class DBApiService {
         }
 
         RdsClient {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey
@@ -156,6 +217,8 @@ class DBApiService {
             val response = rdsClient.deleteDbInstance(deleteDbInstanceRequest)
             log.info { "The status of the database is ${response.dbInstance?.dbInstanceStatus}" }
         }
+
+        waitForInstanceDeleted(dbInstanceIdentifierVal, awsConfiguration)
     }
 
 }

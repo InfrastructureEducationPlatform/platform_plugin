@@ -4,6 +4,7 @@ import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
 import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceRunning
+import aws.sdk.kotlin.services.ec2.waiters.waitUntilInstanceTerminated
 import aws.smithy.kotlin.runtime.retries.getOrThrow
 import com.example.demo.utils.CommonUtils
 import com.example.demo.utils.CommonUtils.log
@@ -21,14 +22,12 @@ class VMApiService {
         }
         val vmFeatures = block.virtualMachineFeatures!!
 
-        if (vmFeatures.region == "" || vmFeatures.osType == "" || vmFeatures.tier == "") {
+        if (vmFeatures.osType == "" || vmFeatures.tier == "") {
             throw CustomException(ErrorCode.INVALID_VM_FEATURES)
         }
     }
 
     suspend fun createEC2Instance(awsConfiguration: AwsConfiguration, block: Block, amiId: String, vpc: CreateVpcDto): BlockOutput {
-        val inputRegion: String = block.virtualMachineFeatures!!.region
-
         try {
             Ec2Client {
                 region = awsConfiguration.region
@@ -40,6 +39,13 @@ class VMApiService {
             }.use { ec2 ->
                 val keyPairRequest = CreateKeyPairRequest {
                     keyName = "aws-keypair-${Random.nextInt(1000)}"
+                    tagSpecifications = listOf(TagSpecification{
+                        resourceType = ResourceType.KeyPair
+                        this.tags = listOf(Tag{
+                            key = "BlockId"
+                            value = block.id
+                        })
+                    })
                 }
                 val keyPairResponse = ec2.createKeyPair(keyPairRequest)
 
@@ -60,14 +66,18 @@ class VMApiService {
                 }
                 val response = ec2.runInstances(request)
                 val instanceId = response.instances?.get(0)?.instanceId
-                val tag = Tag {
+                val tag1 = Tag {
                     key = "Name"
                     value = block.name
+                }
+                val tag2 =  Tag {
+                    key = "BlockId"
+                    value = block.id
                 }
 
                 val requestTags = CreateTagsRequest {
                     resources = listOf(instanceId.toString())
-                    tags = listOf(tag)
+                    tags = listOf(tag1, tag2)
                 }
                 ec2.createTags(requestTags)
                 val waitResponse = ec2.waitUntilInstanceRunning { // suspend call
@@ -79,7 +89,7 @@ class VMApiService {
 
                 log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
                 val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-                return BlockOutput(block.id, block.type, inputRegion, vmOutput, null, null)
+                return BlockOutput(block.id, block.type, vmOutput, null, null)
             }
         } catch (ex: Ec2Exception) {
             CommonUtils.handleAwsException(ex)
@@ -88,13 +98,53 @@ class VMApiService {
 
     }
 
-    suspend fun startInstanceSc(instanceId: String, inputRegion: String, awsConfiguration: AwsConfiguration) {
+    suspend fun deleteVm(block: Block, awsConfiguration: AwsConfiguration): Boolean {
+        val ec2Client = Ec2Client {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }
+        val requestInstances = DescribeInstancesRequest {
+            filters = listOf(Filter{
+                name = "tag:BlockId"
+                values = listOf(block.id)
+            })
+        }
+        val responseInstances = ec2Client.describeInstances(requestInstances)
+        if(responseInstances.reservations?.get(0)?.instances == null) return false
+
+        val instanceId = responseInstances.reservations!![0].instances!![0].instanceId!!
+        terminateEC2(instanceId, awsConfiguration)
+
+        ec2Client.waitUntilInstanceTerminated {
+            instanceIds = listOf(instanceId)
+        }
+
+        val keyPairRequest = DescribeKeyPairsRequest {
+            filters = listOf(Filter{
+                name = "tag:BlockId"
+                values = listOf(block.id)
+            })
+        }
+
+        val keyPairResponse = ec2Client.describeKeyPairs(keyPairRequest)
+        if(keyPairResponse.keyPairs.isNullOrEmpty()) return true
+        ec2Client.deleteKeyPair(DeleteKeyPairRequest {
+            keyPairId = keyPairResponse.keyPairs!![0].keyPairId
+        })
+
+        return true
+    }
+
+    suspend fun startInstanceSc(instanceId: String, awsConfiguration: AwsConfiguration) {
         val request = StartInstancesRequest {
             instanceIds = listOf(instanceId)
         }
 
         Ec2Client {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey
@@ -109,14 +159,14 @@ class VMApiService {
         }
     }
 
-    suspend fun terminateEC2(instanceID: String, inputRegion: String, awsConfiguration: AwsConfiguration) {
+    suspend fun terminateEC2(instanceID: String, awsConfiguration: AwsConfiguration) {
 
         val request = TerminateInstancesRequest {
             instanceIds = listOf(instanceID)
         }
 
         Ec2Client {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey

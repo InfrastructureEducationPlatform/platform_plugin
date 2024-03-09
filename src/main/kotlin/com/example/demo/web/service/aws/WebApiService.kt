@@ -23,7 +23,7 @@ class WebApiService(
             throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
         }
         val webFeatures = block.webServerFeatures!!
-        if (webFeatures.region == "" || webFeatures.tier == "" || webFeatures.containerMetadata.imageTags == "" || webFeatures.containerMetadata.registryUrl == "") {
+        if (webFeatures.tier == "" || webFeatures.containerMetadata.imageTags == "" || webFeatures.containerMetadata.registryUrl == "") {
             throw CustomException(ErrorCode.INVALID_WEBSERVER_FEATURES)
         }
 
@@ -42,7 +42,6 @@ class WebApiService(
 
         try {
             var tableArn: String
-            val inputRegion = "ap-northeast-2"
             ElasticBeanstalkClient {
                 region = awsConfiguration.region
                 credentialsProvider = StaticCredentialsProvider {
@@ -64,10 +63,10 @@ class WebApiService(
                     if (appName.length < 36) "$appName-env"
                     else appName.substring(0 until 36) + "-env"
 
-            val endpoint: String = createEBEnvironment(envName, block.name, inputRegion, awsConfiguration, vpc)
+            val endpoint: String = createEBEnvironment(envName, block.name, awsConfiguration, vpc)
             val ebOutput = WebServerOutput(block.name, endpoint)
 
-            return BlockOutput(block.id, block.type, inputRegion, null, ebOutput, null)
+            return BlockOutput(block.id, block.type, null, ebOutput, null)
         } catch (ex: ElasticBeanstalkException) {
             CommonUtils.handleAwsException(ex)
 
@@ -76,7 +75,7 @@ class WebApiService(
 
     }
 
-    suspend fun createEBEnvironment(envName: String?, appName: String?, inputRegion: String?, awsConfiguration: AwsConfiguration, vpc: CreateVpcDto): String {
+    suspend fun createEBEnvironment(envName: String?, appName: String?, awsConfiguration: AwsConfiguration, vpc: CreateVpcDto): String {
         val setting1 = ConfigurationOptionSetting {
             namespace = "aws:autoscaling:launchconfiguration"
             optionName = "IamInstanceProfile"
@@ -118,7 +117,7 @@ class WebApiService(
                 envArn = applicationResponse.environmentArn.toString()
             }
 
-            return waitForInstanceReady(envName, inputRegion, awsConfiguration)
+            return waitForInstanceReady(envName, awsConfiguration)
         } catch (ex: ElasticBeanstalkException) {
             CommonUtils.handleAwsException(ex)
 
@@ -127,7 +126,7 @@ class WebApiService(
 
     }
 
-    suspend fun waitForInstanceReady(envName: String?, inputRegion: String?, awsConfiguration: AwsConfiguration): String {
+    suspend fun waitForInstanceReady(envName: String?, awsConfiguration: AwsConfiguration): String {
         val sleepTime: Long = 20
         var instanceReady = false
         var instanceReadyStr: String
@@ -138,7 +137,7 @@ class WebApiService(
 
         val envEndpoint: String
         ElasticBeanstalkClient {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey
@@ -160,11 +159,68 @@ class WebApiService(
             val instanceList = response.environments
 
             envEndpoint = instanceList?.get(0)?.endpointUrl.toString()
+            log.info { "$envName is available!" }
         }
         return envEndpoint
     }
 
-    suspend fun deleteApp(appName: String?, inputRegion: String?, awsConfiguration: AwsConfiguration) {
+    suspend fun deleteWebServer(block: Block, awsConfiguration: AwsConfiguration): Boolean {
+        val envNames = mutableListOf<String>()
+        ElasticBeanstalkClient {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { beanstalkClient ->
+            val request = DescribeEnvironmentsRequest {
+                applicationName = block.name
+            }
+            val response = beanstalkClient.describeEnvironments(request)
+            for(env in response.environments!!) {
+                env.environmentName?.let { envNames.add(it) }
+            }
+        }
+        deleteApp(block.name, awsConfiguration)
+        waitForEnvTerminated(envNames, awsConfiguration)
+
+        return false
+    }
+
+    suspend fun waitForEnvTerminated(envNames: List<String>, awsConfiguration: AwsConfiguration) {
+        val sleepTime: Long = 20
+        var instanceTerminated = false
+        var instanceReadyStr: String
+
+        val instanceRequest = DescribeEnvironmentsRequest {
+            environmentNames = envNames
+        }
+
+        ElasticBeanstalkClient {
+            region = awsConfiguration.region
+            credentialsProvider = StaticCredentialsProvider {
+                accessKeyId = awsConfiguration.accessKeyId
+                secretAccessKey = awsConfiguration.secretAccessKey
+            }
+        }.use { beanstalkClient ->
+            while (!instanceTerminated) {
+                val response = beanstalkClient.describeEnvironments(instanceRequest)
+                val instanceList = response.environments
+                if(instanceList.isNullOrEmpty()) break
+                instanceReadyStr = instanceList[0].status?.value.toString()
+                if (instanceReadyStr.contains("Terminated")) {
+                    instanceTerminated = true
+                } else {
+                    log.info { "...$instanceReadyStr" }
+                    delay(sleepTime * 1000)
+                }
+            }
+            delay(1000)
+            log.info {"The Elastic Beanstalk Environment was successfully terminated!"}
+        }
+    }
+
+    suspend fun deleteApp(appName: String?, awsConfiguration: AwsConfiguration) {
 
         val applicationRequest = DeleteApplicationRequest {
             applicationName = appName
@@ -172,7 +228,7 @@ class WebApiService(
         }
 
         ElasticBeanstalkClient {
-            region = inputRegion
+            region = awsConfiguration.region
             credentialsProvider = StaticCredentialsProvider {
                 accessKeyId = awsConfiguration.accessKeyId
                 secretAccessKey = awsConfiguration.secretAccessKey

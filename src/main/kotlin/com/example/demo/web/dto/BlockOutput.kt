@@ -7,8 +7,6 @@ data class BlockOutput(
     val id: String,
     @Schema(description = "블록의 타입")
     val type: String,
-    @Schema(description = "블록 생성 지역")
-    val region: String,
     @Schema(description = "VM 블록 배포 Output")
     val virtualMachineOutput: VirtualMachineOutput?,
     @Schema(description = "웹 서버 블록 배포 Output")

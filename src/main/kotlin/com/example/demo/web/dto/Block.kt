@@ -31,16 +31,12 @@ data class VirtualMachineFeatures(
         @Schema(description = "VM 요금 정보")
         var tier: String,
         @Schema(description = "VM 운영 체제 유형")
-        var osType: String,
-        @Schema(description = "VM 생성 지역")
-        var region: String
+        var osType: String
 )
 
 data class WebServerFeatures(
         @Schema(description = "Web Server 요금 정보")
         var tier: String,
-        @Schema(description = "Web Server 생성 지역")
-        var region: String,
         @Schema(description = "Web Server 메타 데이터")
         var containerMetadata: ContainerMetadata
 )
@@ -55,8 +51,6 @@ data class ContainerMetadata(
 data class DatabaseFeatures(
         @Schema(description = "DB 요금 정보")
         var tier: String,
-        @Schema(description = "DB 생성 지역")
-        var region: String,
         @Schema(description = "DB 사용자 이름")
         var masterUsername: String = "admin",
         @Schema(description = "DB 사용자 비밀번호")
