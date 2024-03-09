@@ -122,6 +122,13 @@ class VMApiService {
             instanceIds = listOf(instanceId)
         }
 
+        ec2Client.deleteTags(DeleteTagsRequest{
+            resources = listOf(instanceId)
+            tags = listOf(Tag{
+                key = "BlockId"
+            })
+        })
+
         val keyPairRequest = DescribeKeyPairsRequest {
             filters = listOf(Filter{
                 name = "tag:BlockId"
