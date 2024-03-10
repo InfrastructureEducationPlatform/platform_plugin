@@ -1,0 +1,8 @@
+spring:
+  mvc:
+    async:
+      request-timeout: -1
+  # Overridden when deployed to actual infrastructure.
+  rabbitmq:
+    host: localhost
+    port: 5672
