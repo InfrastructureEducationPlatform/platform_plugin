@@ -58,44 +58,50 @@ class DeploymentStartConsumer(
                 secretAccessKey = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration["SecretKey"].asText()
         )
 
-        //Service 가능 여부 체크
-        startDeploymentEvent.sketchProjection.blockSketch.get("blockList").forEach {
-            val block = jacksonObjectMapper.convertValue(it, Block::class.java)
-            when (it.get("type").asText()) {
-                "virtualMachine" -> vmApiService.isValidVmBlock(block)
-                "webServer" -> webApiService.isValidWebBlock(block)
-                "database" -> dbApiService.isValidDbBlock(block)
-                else -> {
-                    throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
-                }
-            }
-        }
-
-        val vpc = vpcService.createVpc(awsCredential)
-
-        //Service 배포
         val blockOutputDeferredList = mutableListOf<Deferred<BlockOutput>>()
-        coroutineScope {
-            for (block in startDeploymentEvent.sketchProjection.blockSketch.get("blockList")) {
-                val convertedBlock = jacksonObjectMapper.convertValue(block, Block::class.java)
-                val blockOutputDeferred = async {
-                    when (block.get("type").asText()) {
-                        "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, convertedBlock, "ami-0f3a440bbcff3d043", vpc)
-                        "webServer" -> webApiService.createEBInstance(convertedBlock, awsCredential, vpc)
-                        "database" -> dbApiService.createDatabaseInstance(block.get("name").asText(), convertedBlock, awsCredential, vpc)
-                        else -> {
-                            throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
-                        }
+        runCatching {
+            //Service 가능 여부 체크
+            startDeploymentEvent.sketchProjection.blockSketch.get("blockList").forEach {
+                val block = jacksonObjectMapper.convertValue(it, Block::class.java)
+                when (it.get("type").asText()) {
+                    "virtualMachine" -> vmApiService.isValidVmBlock(block)
+                    "webServer" -> webApiService.isValidWebBlock(block)
+                    "database" -> dbApiService.isValidDbBlock(block)
+                    else -> {
+                        throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
                     }
                 }
-                blockOutputDeferredList.add(blockOutputDeferred)
             }
-        }
 
-        // Send deployment result
-        val blockOutputList = blockOutputDeferredList.map { it.await() }
-        val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, blockOutputList, true)
-        rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
+            val vpc = vpcService.createVpc(awsCredential)
+
+            //Service 배포
+            coroutineScope {
+                for (block in startDeploymentEvent.sketchProjection.blockSketch.get("blockList")) {
+                    val convertedBlock = jacksonObjectMapper.convertValue(block, Block::class.java)
+                    val blockOutputDeferred = async {
+                        when (block.get("type").asText()) {
+                            "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, convertedBlock, "ami-0f3a440bbcff3d043", vpc)
+                            "webServer" -> webApiService.createEBInstance(convertedBlock, awsCredential, vpc)
+                            "database" -> dbApiService.createDatabaseInstance(block.get("name").asText(), convertedBlock, awsCredential, vpc)
+                            else -> {
+                                throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
+                            }
+                        }
+                    }
+                    blockOutputDeferredList.add(blockOutputDeferred)
+                }
+            }
+        }.onSuccess {
+            // Send deployment result
+            val blockOutputList = blockOutputDeferredList.map { it.await() }
+            val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, blockOutputList, true)
+            rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
+        }.onFailure {
+            // Send deployment result
+            val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, null, false)
+            rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
+        }
 
         return Mono.empty()
     }
