@@ -14,6 +14,7 @@ import com.example.demo.web.service.aws.VMApiService
 import com.example.demo.web.service.aws.VpcService
 import com.example.demo.web.service.aws.WebApiService
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -34,6 +35,7 @@ class DeploymentStartConsumer(
         private val vpcService: VpcService,
         private val rabbitTemplate: RabbitTemplate
 ) {
+    val logger = KotlinLogging.logger {}
     @RabbitListener(
             ackMode = "MANUAL",
             bindings = [QueueBinding(
@@ -98,6 +100,7 @@ class DeploymentStartConsumer(
             val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, blockOutputList, true)
             rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
         }.onFailure {
+            logger.error(it) { "Error occurred while deploying" }
             // Send deployment result
             val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, null, false)
             rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
