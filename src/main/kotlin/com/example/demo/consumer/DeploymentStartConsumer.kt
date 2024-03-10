@@ -1,5 +1,8 @@
 package com.example.demo.consumer
 
+import com.example.demo.models.messages.AcceptedDeploymentEvent
+import com.example.demo.models.messages.DeploymentResultEvent
+import com.example.demo.models.messages.MassTransitMessageWrapper
 import com.example.demo.models.messages.StartDeploymentEvent
 import com.example.demo.web.CustomException
 import com.example.demo.web.ErrorCode
@@ -18,6 +21,7 @@ import org.springframework.amqp.rabbit.annotation.Exchange
 import org.springframework.amqp.rabbit.annotation.Queue
 import org.springframework.amqp.rabbit.annotation.QueueBinding
 import org.springframework.amqp.rabbit.annotation.RabbitListener
+import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.stereotype.Component
 import reactor.core.publisher.Mono
 
@@ -27,7 +31,8 @@ class DeploymentStartConsumer(
         private val vmApiService: VMApiService,
         private val webApiService: WebApiService,
         private val dbApiService: DBApiService,
-        private val vpcService: VpcService
+        private val vpcService: VpcService,
+        private val rabbitTemplate: RabbitTemplate
 ) {
     @RabbitListener(
             ackMode = "MANUAL",
@@ -41,7 +46,9 @@ class DeploymentStartConsumer(
         // Get message object field and convert it to a StartDeploymentEvent object
         val startDeploymentEvent = jacksonObjectMapper.convertValue(rootMessage.get("message"), StartDeploymentEvent::class.java)
 
-        // TODO: Send message Back(so it is accepted and started)
+        // Send accepted deployment event
+        val acceptedDeploymentEvent = AcceptedDeploymentEvent(startDeploymentEvent.deploymentLogId)
+        rabbitTemplate.convertAndSend("deployment.accepted", "", jacksonObjectMapper.writeValueAsString(acceptedDeploymentEvent.toMassTransitMessageWrapper()))
 
         // Create AWS Credential
         // {"Region": "Default Region Code(i.e: ap-northeast-2)", "AccessKey": "Access Key ID", "SecretKey": "Access Secret Key"}
@@ -85,8 +92,10 @@ class DeploymentStartConsumer(
             }
         }
 
-        // TODO: Send Back the response
+        // Send deployment result
         val blockOutputList = blockOutputDeferredList.map { it.await() }
+        val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, blockOutputList, true)
+        rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
 
         return Mono.empty()
     }
