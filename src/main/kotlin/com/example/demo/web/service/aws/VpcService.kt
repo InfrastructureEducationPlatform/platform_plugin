@@ -24,7 +24,7 @@ class VpcService {
     }
 
     suspend fun deleteVpc(awsConfiguration: AwsConfiguration) {
-        delay(1000)
+        delay(20000)
         val ec2Client = createEc2Client(awsConfiguration)
 
         val vpcQuery = ec2Client.describeVpcs {
