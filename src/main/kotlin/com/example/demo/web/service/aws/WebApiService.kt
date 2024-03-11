@@ -97,7 +97,7 @@ class WebApiService(
         val applicationRequest = CreateEnvironmentRequest {
             description = "An AWS Elastic Beanstalk environment created using the AWS SDK for Kotlin"
             environmentName = envName
-            solutionStackName = "64bit Amazon Linux 2023 v4.2.1 running Corretto 21"
+            solutionStackName = "64bit Amazon Linux 2023 v4.2.2 running Docker"
             applicationName = appName
             optionSettings = listOf(setting1, setting2, setting3)
         }
