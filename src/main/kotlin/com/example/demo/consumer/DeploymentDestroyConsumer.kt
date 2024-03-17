@@ -8,10 +8,8 @@ import com.example.demo.web.ErrorCode
 import com.example.demo.web.dto.AwsConfiguration
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.service.aws.DBApiService
-import com.example.demo.web.service.aws.VMApiService
-import com.example.demo.web.service.aws.VpcService
-import com.example.demo.web.service.aws.WebApiService
+import com.example.demo.web.dto.RequestSketchDto
+import com.example.demo.web.service.aws.*
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -30,7 +28,7 @@ class DeploymentDestroyConsumer(
         private val vmApiService: VMApiService,
         private val webApiService: WebApiService,
         private val dbApiService: DBApiService,
-        private val vpcService: VpcService,
+        private val githubFeignService: GithubFeignService,
         private val rabbitTemplate: RabbitTemplate
 ) {
     @RabbitListener(
@@ -69,24 +67,8 @@ class DeploymentDestroyConsumer(
         }
 
         //배포 삭제
-        val blockOutputDeferredList = mutableListOf<Deferred<Boolean>>()
-        coroutineScope {
-            for (block in startDeploymentEvent.sketchProjection.blockSketch.get("blockList")) {
-                val blockOutputDeferred = async {
-                    when (block.get("type").asText()) {
-                        "virtualMachine" -> vmApiService.deleteVm(jacksonObjectMapper.convertValue(block, Block::class.java), awsCredential)
-                        "webServer" -> webApiService.deleteWebServer(jacksonObjectMapper.convertValue(block, Block::class.java), awsCredential)
-                        "database" -> dbApiService.deleteDb(jacksonObjectMapper.convertValue(block, Block::class.java), awsCredential)
-                        else -> {
-                            throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
-                        }
-                    }
-                }
-                blockOutputDeferredList.add(blockOutputDeferred)
-            }
-        }
-        val blockOutputList = blockOutputDeferredList.map { it.await() }
-        vpcService.deleteVpc(awsCredential)
+        val sketch = jacksonObjectMapper.convertValue(startDeploymentEvent.sketchProjection, RequestSketchDto::class.java)
+        githubFeignService.dispatchGithubAction("destroy-infrastructure", startDeploymentEvent.deploymentLogId, sketch)
 
         return Mono.empty()
     }
