@@ -6,3 +6,8 @@ spring:
   rabbitmq:
     host: localhost
     port: 5672
+
+api:
+  clientId: "choish20"
+  url: "https://api.url.com"
+  key: "github_action_key"

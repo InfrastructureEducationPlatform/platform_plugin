@@ -9,11 +9,10 @@ import com.example.demo.web.ErrorCode
 import com.example.demo.web.dto.AwsConfiguration
 import com.example.demo.web.dto.Block
 import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.service.aws.DBApiService
-import com.example.demo.web.service.aws.VMApiService
-import com.example.demo.web.service.aws.VpcService
-import com.example.demo.web.service.aws.WebApiService
+import com.example.demo.web.dto.RequestSketchDto
+import com.example.demo.web.service.aws.*
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.convertValue
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -32,7 +31,7 @@ class DeploymentStartConsumer(
         private val vmApiService: VMApiService,
         private val webApiService: WebApiService,
         private val dbApiService: DBApiService,
-        private val vpcService: VpcService,
+        private val githubFeignService: GithubFeignService,
         private val rabbitTemplate: RabbitTemplate
 ) {
     val logger = KotlinLogging.logger {}
@@ -60,7 +59,6 @@ class DeploymentStartConsumer(
                 secretAccessKey = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration["SecretKey"].asText()
         )
 
-        val blockOutputDeferredList = mutableListOf<Deferred<BlockOutput>>()
         runCatching {
             //Service 가능 여부 체크
             startDeploymentEvent.sketchProjection.blockSketch.get("blockList").forEach {
@@ -75,30 +73,12 @@ class DeploymentStartConsumer(
                 }
             }
 
-            val vpc = vpcService.createVpc(awsCredential)
-
             //Service 배포
-            coroutineScope {
-                for (block in startDeploymentEvent.sketchProjection.blockSketch.get("blockList")) {
-                    val convertedBlock = jacksonObjectMapper.convertValue(block, Block::class.java)
-                    val blockOutputDeferred = async {
-                        when (block.get("type").asText()) {
-                            "virtualMachine" -> vmApiService.createEC2Instance(awsCredential, convertedBlock, "ami-0f3a440bbcff3d043", vpc)
-                            "webServer" -> webApiService.createEBInstance(convertedBlock, awsCredential, vpc)
-                            "database" -> dbApiService.createDatabaseInstance(block.get("name").asText(), convertedBlock, awsCredential, vpc)
-                            else -> {
-                                throw CustomException(ErrorCode.INVALID_BLOCK_TYPE)
-                            }
-                        }
-                    }
-                    blockOutputDeferredList.add(blockOutputDeferred)
-                }
-            }
+            val sketch = jacksonObjectMapper.convertValue(startDeploymentEvent.sketchProjection, RequestSketchDto::class.java)
+            githubFeignService.dispatchGithubAction("deploy-infrastructure", startDeploymentEvent.deploymentLogId, sketch)
         }.onSuccess {
             // Send deployment result
-            val blockOutputList = blockOutputDeferredList.map { it.await() }
-            val deploymentResultEvent = DeploymentResultEvent(startDeploymentEvent.deploymentLogId, blockOutputList, true)
-            rabbitTemplate.convertAndSend("deployment.result", "", jacksonObjectMapper.writeValueAsString(deploymentResultEvent.toMassTransitMessageWrapper()))
+
         }.onFailure {
             logger.error(it) { "Error occurred while deploying" }
             // Send deployment result

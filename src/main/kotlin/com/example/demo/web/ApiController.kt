@@ -1,13 +1,10 @@
 package com.example.demo.web
 
-import com.example.demo.web.dto.AwsConfiguration
-import com.example.demo.web.dto.BlockOutput
-import com.example.demo.web.dto.RequestSketchDto
-import com.example.demo.web.dto.ResponseSketchDto
-import com.example.demo.web.service.aws.DBApiService
-import com.example.demo.web.service.aws.VMApiService
-import com.example.demo.web.service.aws.VpcService
-import com.example.demo.web.service.aws.WebApiService
+import com.example.demo.models.messages.DeploymentResultEvent
+import com.example.demo.utils.CommonUtils.log
+import com.example.demo.web.dto.*
+import com.example.demo.web.service.aws.*
+import com.fasterxml.jackson.databind.JsonNode
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.ArraySchema
@@ -27,8 +24,21 @@ class ApiController(
     private val vmApiService: VMApiService,
     private val webApiService: WebApiService,
     private val dbApiService: DBApiService,
-    private val vpcService: VpcService
+    private val vpcService: VpcService,
+    private val githubFeignService: GithubFeignService
 ) {
+    @ApiResponses(value = [
+        ApiResponse(responseCode = "200", description = "배포 요청 성공", content = [
+            Content(mediaType = "application/json", array = ArraySchema(schema = Schema(implementation = ResponseSketchDto::class)))
+        ]),
+        ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
+    ])
+    @Operation(summary = "Github Actions 배포 response receive API")
+    @PostMapping("/api/deployment/receive")
+    suspend fun receiveOutputs(@RequestBody receiveRequest: RequestOutputMessageDto) {
+        githubFeignService.sendOutputMessage(receiveRequest)
+    }
+
     @ApiResponses(value = [
         ApiResponse(responseCode = "200", description = "배포 요청 성공", content = [
             Content(mediaType = "application/json", array = ArraySchema(schema = Schema(implementation = ResponseSketchDto::class)))
