@@ -51,14 +51,6 @@ class DeploymentStartConsumer(
         val acceptedDeploymentEvent = AcceptedDeploymentEvent(startDeploymentEvent.deploymentLogId)
         rabbitTemplate.convertAndSend("deployment.accepted", "", jacksonObjectMapper.writeValueAsString(acceptedDeploymentEvent.toMassTransitMessageWrapper()))
 
-        // Create AWS Credential
-        // {"Region": "Default Region Code(i.e: ap-northeast-2)", "AccessKey": "Access Key ID", "SecretKey": "Access Secret Key"}
-        val awsCredential = AwsConfiguration(
-                region = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration["Region"].asText(),
-                accessKeyId = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration["AccessKey"].asText(),
-                secretAccessKey = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration["SecretKey"].asText()
-        )
-
         runCatching {
             //Service 가능 여부 체크
             startDeploymentEvent.sketchProjection.blockSketch.get("blockList").forEach {
@@ -74,8 +66,14 @@ class DeploymentStartConsumer(
             }
 
             //Service 배포
-            val sketch = jacksonObjectMapper.convertValue(startDeploymentEvent.sketchProjection, RequestSketchDto::class.java)
-            githubFeignService.dispatchGithubAction("deploy-infrastructure", startDeploymentEvent.deploymentLogId, sketch)
+            val sketchDto = RequestSketchDto(
+                    sketchId = startDeploymentEvent.sketchProjection.blockSketch.get("sketchId").asText(),
+                    blockList = startDeploymentEvent.sketchProjection.blockSketch.get("blockList").map {
+                        jacksonObjectMapper.convertValue(it, Block::class.java)
+                    },
+                    pluginInstallationInformation = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration
+            )
+            githubFeignService.dispatchGithubAction("deploy-infrastructure", startDeploymentEvent.deploymentLogId, sketchDto)
         }.onSuccess {
             // Send deployment result
             logger.info { "Successfully dispatched to github action." }
