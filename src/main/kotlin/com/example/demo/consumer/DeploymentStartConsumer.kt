@@ -78,7 +78,7 @@ class DeploymentStartConsumer(
             githubFeignService.dispatchGithubAction("deploy-infrastructure", startDeploymentEvent.deploymentLogId, sketch)
         }.onSuccess {
             // Send deployment result
-
+            logger.info { "Successfully dispatched to github action." }
         }.onFailure {
             logger.error(it) { "Error occurred while deploying" }
             // Send deployment result
