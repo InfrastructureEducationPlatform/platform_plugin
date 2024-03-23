@@ -28,7 +28,7 @@ class GithubClientConfig(
     @Bean
     fun requestInterceptor(): RequestInterceptor {
         return RequestInterceptor {
-            it.header("Authorization", "token ${apiConfiguration.key}")
+            it.header("Authorization", "Bearer ${apiConfiguration.key}")
         }
     }
 }
