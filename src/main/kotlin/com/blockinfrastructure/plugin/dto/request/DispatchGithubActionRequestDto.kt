@@ -53,7 +53,7 @@ data class DispatchGithubActionRequestDto(
                                 registry_url    = "${block.webServerFeatures!!.containerMetadata.registryUrl}"
                                 container_port  = "${block.webServerFeatures!!.containerMetadata.containerPort}"
                             },
-                            db_ref = "${block.webServerFeatures!!.connectionMetadata.dbRef}"
+                            db_ref = "${request.blockList.find { it.type == "database" && it.id == block.webServerFeatures!!.connectionMetadata.dbRef }?.name ?: ""}"
                         },
                     """.trimIndent()
                         ebDefs += ebDef
