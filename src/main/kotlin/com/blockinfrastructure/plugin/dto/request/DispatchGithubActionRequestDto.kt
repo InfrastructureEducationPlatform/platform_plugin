@@ -51,6 +51,7 @@ data class DispatchGithubActionRequestDto(
                             container_meta_data = {
                                 image_tags      = "${block.webServerFeatures!!.containerMetadata.imageTags}"
                                 registry_url    = "${block.webServerFeatures!!.containerMetadata.registryUrl}"
+                                container_port  = "${block.webServerFeatures!!.containerMetadata.containerPort}"
                             },
                             db_ref = "${block.webServerFeatures!!.connectionMetadata.dbRef}"
                         },

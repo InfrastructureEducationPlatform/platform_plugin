@@ -63,7 +63,8 @@ data class ContainerMetadata(
         @Schema(description = "웹 서버 이미지 태그")
         var imageTags: String,
         @Schema(description = "웹 서버 url")
-        var registryUrl: String
+        var registryUrl: String,
+        val containerPort: Int
 )
 
 data class ContainerConnectionInformation(
