@@ -3,6 +3,7 @@ package com.blockinfrastructure.plugin.dto.request
 import com.blockinfrastructure.plugin.legacy.dto.RequestSketchDto
 import com.blockinfrastructure.plugin.legacy.dto.TfVar
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 data class DispatchGithubActionRequestDto(
         @JsonProperty("event_type")
@@ -12,7 +13,9 @@ data class DispatchGithubActionRequestDto(
 ) {
     companion object {
         fun fromRequestSketchDto(eventType: EventType, deploymentId: String, requestSketchDto: RequestSketchDto): DispatchGithubActionRequestDto {
-            return DispatchGithubActionRequestDto(eventType.eventName, requestConverter(deploymentId, requestSketchDto))
+            val test = DispatchGithubActionRequestDto(eventType.eventName, requestConverter(deploymentId, requestSketchDto))
+            println(jacksonObjectMapper().writeValueAsString(test))
+            return test
         }
 
         private fun requestConverter(deploymentId: String, request: RequestSketchDto): ClientPayload {
@@ -48,7 +51,8 @@ data class DispatchGithubActionRequestDto(
                             container_meta_data = {
                                 image_tags      = "${block.webServerFeatures!!.containerMetadata.imageTags}"
                                 registry_url    = "${block.webServerFeatures!!.containerMetadata.registryUrl}"
-                            }
+                            },
+                            db_ref = "${block.webServerFeatures!!.connectionMetadata.dbRef}"
                         },
                     """.trimIndent()
                         ebDefs += ebDef

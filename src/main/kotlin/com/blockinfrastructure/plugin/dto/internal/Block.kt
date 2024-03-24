@@ -51,7 +51,8 @@ data class WebServerFeatures(
         @Schema(description = "Web Server 요금 정보")
         var tier: String,
         @Schema(description = "Web Server 메타 데이터")
-        var containerMetadata: ContainerMetadata
+        var containerMetadata: ContainerMetadata,
+        val connectionMetadata: ContainerConnectionInformation
 ) {
     fun isValidWebFeatures(): Boolean {
         return tier.isNotEmpty() && containerMetadata.imageTags.isNotEmpty() && containerMetadata.registryUrl.isNotEmpty()
@@ -63,6 +64,10 @@ data class ContainerMetadata(
         var imageTags: String,
         @Schema(description = "웹 서버 url")
         var registryUrl: String
+)
+
+data class ContainerConnectionInformation(
+        val dbRef: String
 )
 
 data class DatabaseFeatures(
