@@ -1,6 +1,8 @@
 package com.blockinfrastructure.plugin.controllers
 
 import com.blockinfrastructure.plugin.dto.request.DeploymentOutputRequestDto
+import com.blockinfrastructure.plugin.dto.request.DeploymentReportRequestDto
+import com.blockinfrastructure.plugin.dto.request.DeploymentReportType
 import com.blockinfrastructure.plugin.legacy.dto.ResponseSketchDto
 import com.blockinfrastructure.plugin.service.DeploymentReceiveService
 import io.swagger.v3.oas.annotations.Operation
@@ -9,13 +11,14 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/deployment/receive")
+@RequestMapping("/api/deployment")
 class DeploymentReceiveController(
         private val deploymentReceiveService: DeploymentReceiveService
 ) {
@@ -26,8 +29,27 @@ class DeploymentReceiveController(
         ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
     ])
     @Operation(summary = "Github Actions 배포 response receive API")
-    @PostMapping("output")
+    @PostMapping("receive/output")
     suspend fun receiveOutputs(@RequestBody receiveRequest: DeploymentOutputRequestDto) {
         deploymentReceiveService.sendDeploymentEventOutput(receiveRequest)
+    }
+
+    @PostMapping("report")
+    fun report(@RequestBody reportRequest: DeploymentReportRequestDto): ResponseEntity<Unit> {
+        when (reportRequest.reportType) {
+            DeploymentReportType.DEPLOYED -> {
+                deploymentReceiveService.sendDeploymentEventOutput(reportRequest.toDeploymentOutputRequestDto())
+            }
+
+            DeploymentReportType.DESTROYED -> {
+                deploymentReceiveService.sendDeploymentEventOutput(reportRequest.toDeploymentOutputRequestDto())
+            }
+
+            DeploymentReportType.FAILED -> {
+                deploymentReceiveService.sendDeploymentFailedEvent(reportRequest.deploymentId)
+            }
+        }
+
+        return ResponseEntity.noContent().build()
     }
 }
