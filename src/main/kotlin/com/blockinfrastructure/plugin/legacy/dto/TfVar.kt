@@ -8,6 +8,7 @@ class TfVar(
         val sketchId: String,
         val sketchName: String,
 
+        val region: String,
         val accessKey: String,
         val secretKey: String,
 

@@ -12,8 +12,15 @@ data class DispatchGithubActionRequestDto(
         val clientPayload: ClientPayload
 ) {
     companion object {
-        fun fromRequestSketchDto(eventType: EventType, deploymentId: String, requestSketchDto: RequestSketchDto): DispatchGithubActionRequestDto {
-            val test = DispatchGithubActionRequestDto(eventType.eventName, requestConverter(deploymentId, requestSketchDto))
+        fun fromRequestSketchDto(
+                eventType: EventType,
+                deploymentId: String,
+                requestSketchDto: RequestSketchDto
+        ): DispatchGithubActionRequestDto {
+            val test = DispatchGithubActionRequestDto(
+                    eventType.eventName,
+                    requestConverter(deploymentId, requestSketchDto)
+            )
             println(jacksonObjectMapper().writeValueAsString(test))
             return test
         }
@@ -80,6 +87,7 @@ data class DispatchGithubActionRequestDto(
                     deploymentId,
                     request.sketchId,
                     "sketch_name",
+                    request.pluginInstallationInformation["Region"].asText(),
                     request.pluginInstallationInformation["AccessKey"].asText(),
                     request.pluginInstallationInformation["SecretKey"].asText(),
                     ec2Defs, ebDefs, rdsDefs
@@ -97,6 +105,7 @@ data class DispatchGithubActionRequestDto(
             sketch_name       = "${tfVar.sketchName}"
             
             # General
+            region     = "${tfVar.region}"
             access_key = "${tfVar.accessKey}"
             secret_key = "${tfVar.secretKey}"
             
