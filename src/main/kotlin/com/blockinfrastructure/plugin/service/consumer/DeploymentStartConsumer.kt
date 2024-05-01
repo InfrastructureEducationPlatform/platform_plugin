@@ -51,7 +51,25 @@ class DeploymentStartConsumer(
                     blockList = blockList,
                     pluginInstallationInformation = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration
             )
-            githubFeignClient.dispatch(DispatchGithubActionRequestDto.fromRequestSketchDto(EventType.DEPLOY_INFRASTRUCTURE, startDeploymentEvent.deploymentLogId, sketchDto))
+            val pluginId = startDeploymentEvent.pluginInstallationProjection.pluginId
+            if (pluginId == "aws-static")
+                githubFeignClient.dispatchAws(
+                        DispatchGithubActionRequestDto.fromRequestSketchDto(
+                                EventType.DEPLOY_INFRASTRUCTURE,
+                                startDeploymentEvent.deploymentLogId,
+                                sketchDto,
+                                pluginId
+                        )
+                )
+            else if (pluginId == "azure-static")
+                githubFeignClient.dispatchAzure(
+                        DispatchGithubActionRequestDto.fromRequestSketchDto(
+                                EventType.DEPLOY_INFRASTRUCTURE,
+                                startDeploymentEvent.deploymentLogId,
+                                sketchDto,
+                                pluginId
+                        )
+                )
         }.onSuccess {
             // Send deployment result
             logger.info { "Successfully dispatched to github action." }

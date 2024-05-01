@@ -11,7 +11,10 @@ import org.springframework.web.bind.annotation.RequestBody
 @FeignClient(name = "githubFeignClient", url = "https://api.github.com/", configuration = [GithubClientConfig::class])
 interface GithubFeignClient {
     @PostMapping("repos/InfrastructureEducationPlatform/platform-terraform/dispatches")
-    fun dispatch(@RequestBody requestBody: DispatchGithubActionRequestDto)
+    fun dispatchAws(@RequestBody requestBody: DispatchGithubActionRequestDto)
+
+    @PostMapping("repos/InfrastructureEducationPlatform/platform-terraform-azure/dispatches")
+    fun dispatchAzure(@RequestBody requestBody: DispatchGithubActionRequestDto)
 }
 
 class GithubClientConfig(

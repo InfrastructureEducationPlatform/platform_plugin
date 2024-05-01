@@ -9,8 +9,6 @@ class TfVar(
         val sketchName: String,
 
         val region: String,
-        val accessKey: String,
-        val secretKey: String,
 
         val ec2Def: String,
         val ebDef: String,

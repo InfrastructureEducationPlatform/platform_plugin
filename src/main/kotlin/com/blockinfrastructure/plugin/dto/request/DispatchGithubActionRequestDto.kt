@@ -15,17 +15,18 @@ data class DispatchGithubActionRequestDto(
         fun fromRequestSketchDto(
                 eventType: EventType,
                 deploymentId: String,
-                requestSketchDto: RequestSketchDto
+                requestSketchDto: RequestSketchDto,
+                pluginId: String
         ): DispatchGithubActionRequestDto {
             val test = DispatchGithubActionRequestDto(
                     eventType.eventName,
-                    requestConverter(deploymentId, requestSketchDto)
+                    requestConverter(deploymentId, requestSketchDto, pluginId)
             )
             println(jacksonObjectMapper().writeValueAsString(test))
             return test
         }
 
-        private fun requestConverter(deploymentId: String, request: RequestSketchDto): ClientPayload {
+        private fun requestConverter(deploymentId: String, request: RequestSketchDto, pluginId: String): ClientPayload {
             var ec2Defs = ""
             var ebDefs = ""
             var rdsDefs = ""
@@ -88,17 +89,27 @@ data class DispatchGithubActionRequestDto(
                     request.sketchId,
                     "sketch_name",
                     request.pluginInstallationInformation["Region"].asText(),
-                    request.pluginInstallationInformation["AccessKey"].asText(),
-                    request.pluginInstallationInformation["SecretKey"].asText(),
                     ec2Defs, ebDefs, rdsDefs
             )
 
-            val tfvarStr = tfvarToStr(tfvar)
+            val authStr = when (pluginId) {
+                "aws-static" -> "access_key = \"${request.pluginInstallationInformation["AccessKey"].asText()}\"\n" +
+                        "secret_key = \"${request.pluginInstallationInformation["SecretKey"].asText()}\""
+
+                "azure-static" -> "client_id       = \"${request.pluginInstallationInformation["ClientId"].asText()}\"\n" +
+                        "client_secret   = \"${request.pluginInstallationInformation["ClientSecret"].asText()}\"\n" +
+                        "subscription_id = \"${request.pluginInstallationInformation["SubscriptionId"].asText()}\"\n" +
+                        "tenant_id       = \"${request.pluginInstallationInformation["TenantId"].asText()}\""
+
+                else -> ""
+            }
+
+            val tfvarStr = tfvarToStr(tfvar, authStr)
 
             return ClientPayload(request.sketchId, tfvarStr)
         }
 
-        private fun tfvarToStr(tfVar: TfVar): String {
+        private fun tfvarToStr(tfVar: TfVar, authStr: String): String {
             val retStr = """
             deployment_log_id = "${tfVar.deploymentId}"
             sketch_id         = "${tfVar.sketchId}"
@@ -106,8 +117,7 @@ data class DispatchGithubActionRequestDto(
             
             # General
             region     = "${tfVar.region}"
-            access_key = "${tfVar.accessKey}"
-            secret_key = "${tfVar.secretKey}"
+            $authStr
             
             # EC2
             ec2_def = [

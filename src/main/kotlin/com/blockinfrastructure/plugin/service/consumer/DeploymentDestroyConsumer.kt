@@ -44,7 +44,24 @@ class DeploymentDestroyConsumer(
                     blockList = blockList,
                     pluginInstallationInformation = startDeploymentEvent.pluginInstallationProjection.pluginConfiguration
             )
-            githubFeignClient.dispatch(DispatchGithubActionRequestDto.fromRequestSketchDto(EventType.DESTROY_INFRASTRUCTURE, startDeploymentEvent.deploymentLogId, sketchDto))
+            val pluginId = startDeploymentEvent.pluginInstallationProjection.pluginId
+            if (pluginId == "aws-static") githubFeignClient.dispatchAws(
+                DispatchGithubActionRequestDto.fromRequestSketchDto(
+                    EventType.DESTROY_INFRASTRUCTURE,
+                    startDeploymentEvent.deploymentLogId,
+                    sketchDto,
+                    pluginId
+                )
+            )
+            else if (pluginId == "azure-static") githubFeignClient.dispatchAzure(
+                DispatchGithubActionRequestDto.fromRequestSketchDto(
+                    EventType.DESTROY_INFRASTRUCTURE,
+                    startDeploymentEvent.deploymentLogId,
+                    sketchDto,
+                    pluginId
+                )
+            )
+
         }.onSuccess {
             logger.info { "Successfully dispatched to github action." }
         }.onFailure {
