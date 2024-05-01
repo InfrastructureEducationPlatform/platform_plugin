@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
+import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -20,17 +21,27 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/deployment")
 class DeploymentReceiveController(
-        private val deploymentReceiveService: DeploymentReceiveService
+    private val deploymentReceiveService: DeploymentReceiveService
 ) {
-    @ApiResponses(value = [
-        ApiResponse(responseCode = "200", description = "배포 요청 성공", content = [
-            Content(mediaType = "application/json", array = ArraySchema(schema = Schema(implementation = ResponseSketchDto::class)))
-        ]),
-        ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
-    ])
+    private val logger = LoggerFactory.getLogger(this::class.java)
+
+    @ApiResponses(
+        value = [
+            ApiResponse(
+                responseCode = "200", description = "배포 요청 성공", content = [
+                    Content(
+                        mediaType = "application/json",
+                        array = ArraySchema(schema = Schema(implementation = ResponseSketchDto::class))
+                    )
+                ]
+            ),
+            ApiResponse(responseCode = "400", description = "잘못된 파라미터 값 입력", content = [Content()])
+        ]
+    )
     @Operation(summary = "Github Actions 배포 response receive API")
     @PostMapping("receive/output")
     suspend fun receiveOutputs(@RequestBody receiveRequest: DeploymentOutputRequestDto) {
+        logger.info("receiveOutputs: $receiveRequest")
         deploymentReceiveService.sendDeploymentEventOutput(receiveRequest)
     }
 
