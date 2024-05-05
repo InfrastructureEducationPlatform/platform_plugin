@@ -6,21 +6,21 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 
 data class DispatchGithubActionRequestDto(
-        @JsonProperty("event_type")
-        val eventType: String,
-        @JsonProperty("client_payload")
-        val clientPayload: ClientPayload
+    @JsonProperty("event_type")
+    val eventType: String,
+    @JsonProperty("client_payload")
+    val clientPayload: ClientPayload
 ) {
     companion object {
         fun fromRequestSketchDto(
-                eventType: EventType,
-                deploymentId: String,
-                requestSketchDto: RequestSketchDto,
-                pluginId: String
+            eventType: EventType,
+            deploymentId: String,
+            requestSketchDto: RequestSketchDto,
+            pluginId: String
         ): DispatchGithubActionRequestDto {
             val test = DispatchGithubActionRequestDto(
-                    eventType.eventName,
-                    requestConverter(deploymentId, requestSketchDto, pluginId)
+                eventType.eventName,
+                requestConverter(deploymentId, requestSketchDto, pluginId)
             )
             println(jacksonObjectMapper().writeValueAsString(test))
             return test
@@ -30,6 +30,7 @@ data class DispatchGithubActionRequestDto(
             var ec2Defs = ""
             var ebDefs = ""
             var rdsDefs = ""
+            var cacheDefs = ""
 
             for (block in request.blockList) {
                 when (block.type) {
@@ -48,8 +49,8 @@ data class DispatchGithubActionRequestDto(
                     "webServer" -> {
                         val appName = block.name
                         val envName =
-                                if (appName.length < 36) "$appName-env"
-                                else appName.substring(0 until 36) + "-env"
+                            if (appName.length < 36) "$appName-env"
+                            else appName.substring(0 until 36) + "-env"
                         val ebDef = """
                         {
                             block_id            = "${block.id}",
@@ -80,16 +81,27 @@ data class DispatchGithubActionRequestDto(
                         rdsDefs += rdsDef
                     }
 
+                    "cache" -> {
+                        val cacheDef = """
+                        {
+                            block_id             = "${block.id}",
+                            name                 = "${block.name}",
+                            tier                 = "${block.cacheFeatures!!.tier}"
+                        },
+                    """.trimIndent()
+                        cacheDefs += cacheDef
+                    }
+
                     else -> {}
                 }
             }
 
             val tfvar = TfVar(
-                    deploymentId,
-                    request.sketchId,
-                    "sketch_name",
-                    request.pluginInstallationInformation["Region"].asText(),
-                    ec2Defs, ebDefs, rdsDefs
+                deploymentId,
+                request.sketchId,
+                "sketch_name",
+                request.pluginInstallationInformation["Region"].asText(),
+                ec2Defs, ebDefs, rdsDefs, cacheDefs
             )
 
             val authStr = when (pluginId) {
@@ -134,6 +146,11 @@ data class DispatchGithubActionRequestDto(
                 ${tfVar.rdsDef}
             ]
             
+            # Cache
+            cache_def = [
+                ${tfVar.cacheDef}
+            ]
+            
         """.trimIndent()
 
             return retStr
@@ -142,10 +159,10 @@ data class DispatchGithubActionRequestDto(
 }
 
 data class ClientPayload(
-        @JsonProperty("sketch_id")
-        val sketchId: String,
-        @JsonProperty("tfvars_content")
-        val content: String
+    @JsonProperty("sketch_id")
+    val sketchId: String,
+    @JsonProperty("tfvars_content")
+    val content: String
 )
 
 enum class EventType(val eventName: String) {

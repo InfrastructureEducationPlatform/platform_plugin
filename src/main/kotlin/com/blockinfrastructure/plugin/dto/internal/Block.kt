@@ -24,15 +24,27 @@ data class Block(
         @Schema(description = "웹 서버 블록 Features")
         var webServerFeatures: WebServerFeatures?,
         @Schema(description = "DB 블록 Features")
-        var databaseFeatures: DatabaseFeatures?
+        var databaseFeatures: DatabaseFeatures?,
+        @Schema(description = "Cache 블록 Features")
+        var cacheFeatures: CacheFeatures?
 ) {
     fun isValidBlock(): Boolean {
         return when (type) {
             "virtualMachine" -> virtualMachineFeatures?.isValidVmFeatures() == true
             "webServer" -> webServerFeatures?.isValidWebFeatures() == true && name.matches(Regex("^.{1,100}$"))
             "database" -> databaseFeatures?.isValidDbFeatures() == true && name.matches(Regex("^[a-zA-Z][a-zA-Z0-9_]{0,62}$"))
+            "cache" -> cacheFeatures?.isValidCacheFeatures() == true
             else -> false
         }
+    }
+}
+
+data class CacheFeatures (
+    @Schema(description = "Cache Tier")
+    var tier: String,
+) {
+    fun isValidCacheFeatures(): Boolean {
+        return tier.isNotEmpty()
     }
 }
 
