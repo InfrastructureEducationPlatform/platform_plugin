@@ -94,7 +94,7 @@ class DBApiService {
             val rdsOutput = DatabaseOutput(dbInstanceIdentifierVal!!, publicFQDN, masterUsernameVal,
                     masterUserPasswordVal
             )
-            return BlockOutput(block.id, block.type, null, null, rdsOutput)
+            return BlockOutput(block.id, block.type, null, null, rdsOutput, null)
         } catch (ex: RdsException) {
             CommonUtils.handleAwsException(ex)
 

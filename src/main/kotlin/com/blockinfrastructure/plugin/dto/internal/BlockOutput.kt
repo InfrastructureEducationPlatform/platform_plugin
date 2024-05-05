@@ -1,5 +1,6 @@
 package com.blockinfrastructure.plugin.dto.internal
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 
 data class BlockOutput(
@@ -12,7 +13,8 @@ data class BlockOutput(
         @Schema(description = "웹 서버 블록 배포 Output")
         val webServerOutput: WebServerOutput?,
         @Schema(description = "DB 블록 배포 Output")
-        val databaseOutput: DatabaseOutput?
+        val databaseOutput: DatabaseOutput?,
+        val cacheOutput: CacheOutput?
 )
 
 data class VirtualMachineOutput(
@@ -41,4 +43,10 @@ data class DatabaseOutput(
         val databaseUsername: String,
         @Schema(description = "DB 사용자 비밀번호")
         val databasePassword: String
+)
+
+data class CacheOutput(
+        val redisHost: String,
+        val redisPort: Int,
+        val redisPrimaryAccessKey: String
 )
