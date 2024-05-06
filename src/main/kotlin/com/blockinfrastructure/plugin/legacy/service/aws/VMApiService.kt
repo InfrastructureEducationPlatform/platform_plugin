@@ -93,7 +93,7 @@ class VMApiService {
 
                 log.info { "Successfully started EC2 Instance $instanceId based on AMI $amiId" }
                 val vmOutput = VirtualMachineOutput(instanceId.toString(), ipAddress.toString(), sshPrivateKey.toString())
-                return BlockOutput(block.id, block.type, vmOutput, null, null, null)
+                return BlockOutput(block.id, block.type, vmOutput, null, null, null, null)
             }
         } catch (ex: Ec2Exception) {
             CommonUtils.handleAwsException(ex)

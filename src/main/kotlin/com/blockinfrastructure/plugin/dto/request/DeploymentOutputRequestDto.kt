@@ -13,6 +13,8 @@ data class DeploymentOutputRequestDto(
         val rdsOutputs: List<RdsOutput>,
         @JsonProperty("cache_outputs")
         val cacheOutputs: List<InternalCacheOutput>,
+        @JsonProperty("cache_outputs")
+        val mqOutputs: List<InternalMqOutput>,
         @JsonProperty("deployment_log_id")
         val deploymentLogId: String,
         @JsonProperty("sketch_id")
@@ -25,23 +27,30 @@ data class DeploymentOutputRequestDto(
         val blockOutputList = ArrayList<BlockOutput>()
         for (ec2 in ec2Outputs) {
             val blockOutput = BlockOutput(ec2.blockId, "virtualMachine",
-                    VirtualMachineOutput(ec2.instanceId, ec2.ipAddress, ec2.sshKey), null, null, null)
+                    VirtualMachineOutput(ec2.instanceId, ec2.ipAddress, ec2.sshKey), null, null, null, null)
             blockOutputList.add(blockOutput)
         }
         for (eb in ebOutputs) {
             val blockOutput = BlockOutput(eb.blockId, "webServer",
-                    null, WebServerOutput(eb.appName, eb.fqdn), null, null)
+                    null, WebServerOutput(eb.appName, eb.fqdn), null, null, null)
             blockOutputList.add(blockOutput)
         }
         for (rds in rdsOutputs) {
             val blockOutput = BlockOutput(rds.blockId, "database",
-                    null, null, DatabaseOutput(rds.identifier, rds.fqdn, rds.username, rds.password), null)
+                    null, null, DatabaseOutput(rds.identifier, rds.fqdn, rds.username, rds.password), null, null)
             blockOutputList.add(blockOutput)
         }
 
         for (cache in cacheOutputs) {
             val blockOutput = BlockOutput(cache.blockId, "cache",
-                    null, null, null, CacheOutput(cache.redisHost, cache.redisPort, cache.redisPrimaryAccessKey)
+                    null, null, null, CacheOutput(cache.redisHost, cache.redisPort, cache.redisPrimaryAccessKey,), null
+            )
+            blockOutputList.add(blockOutput)
+        }
+
+        for (mq in mqOutputs) {
+            val blockOutput = BlockOutput(mq.blockId, "mq",
+                    null, null, null, null, MqOutput(mq.mqAmqps)
             )
             blockOutputList.add(blockOutput)
         }
@@ -93,4 +102,11 @@ data class InternalCacheOutput(
     val redisPort: Int,
     @JsonProperty("redis_primary_access_key")
     val redisPrimaryAccessKey: String,
+)
+
+data class InternalMqOutput(
+    @JsonProperty("block_id")
+    val blockId: String,
+    @JsonProperty("mq_amqps")
+    val mqAmqps: String,
 )

@@ -14,7 +14,8 @@ data class BlockOutput(
         val webServerOutput: WebServerOutput?,
         @Schema(description = "DB 블록 배포 Output")
         val databaseOutput: DatabaseOutput?,
-        val cacheOutput: CacheOutput?
+        val cacheOutput: CacheOutput?,
+        val mqOutput: MqOutput?
 )
 
 data class VirtualMachineOutput(
@@ -49,4 +50,7 @@ data class CacheOutput(
         val redisHost: String,
         val redisPort: Int,
         val redisPrimaryAccessKey: String
+)
+data class MqOutput(
+        val mqAmqps: String,
 )

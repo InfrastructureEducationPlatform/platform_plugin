@@ -26,7 +26,8 @@ data class Block(
         @Schema(description = "DB 블록 Features")
         var databaseFeatures: DatabaseFeatures?,
         @Schema(description = "Cache 블록 Features")
-        var cacheFeatures: CacheFeatures?
+        var cacheFeatures: CacheFeatures?,
+        var mqFeatures: MessageQueueFeatures?
 ) {
     fun isValidBlock(): Boolean {
         return when (type) {
@@ -34,8 +35,24 @@ data class Block(
             "webServer" -> webServerFeatures?.isValidWebFeatures() == true && name.matches(Regex("^.{1,100}$"))
             "database" -> databaseFeatures?.isValidDbFeatures() == true && name.matches(Regex("^[a-zA-Z][a-zA-Z0-9_]{0,62}$"))
             "cache" -> cacheFeatures?.isValidCacheFeatures() == true
+            "mq" -> mqFeatures?.isValidMqFeatures() == true
             else -> false
         }
+    }
+}
+
+data class MessageQueueFeatures(
+        @Schema(description = "MQ 요금 정보")
+        var tier: String,
+        @Schema(description = "MQ 지역")
+        var region: String,
+        @Schema(description = "MQ 사용자 이름")
+        var username: String,
+        @Schema(description = "MQ 사용자 비밀번호")
+        var password: String
+) {
+    fun isValidMqFeatures(): Boolean {
+        return tier.isNotEmpty() && region.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()
     }
 }
 

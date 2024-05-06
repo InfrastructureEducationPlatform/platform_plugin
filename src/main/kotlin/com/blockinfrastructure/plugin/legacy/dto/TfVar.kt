@@ -13,7 +13,8 @@ class TfVar(
         val ec2Def: String,
         val ebDef: String,
         val rdsDef: String,
-        val cacheDef: String
+        val cacheDef: String,
+        val mqDef: String
 )
 
 

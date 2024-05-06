@@ -31,6 +31,7 @@ data class DispatchGithubActionRequestDto(
             var ebDefs = ""
             var rdsDefs = ""
             var cacheDefs = ""
+            var mqDefs = ""
 
             for (block in request.blockList) {
                 when (block.type) {
@@ -92,6 +93,20 @@ data class DispatchGithubActionRequestDto(
                         cacheDefs += cacheDef
                     }
 
+                    "mq" -> {
+                        val mqDef = """
+                        {
+                            block_id             = "${block.id}",
+                            name                 = "${block.name}",
+                            tier                 = "${block.mqFeatures!!.tier}"
+                            region               = "${block.mqFeatures!!.region}"
+                            username             = "${block.mqFeatures!!.username}"
+                            password             = "${block.mqFeatures!!.password}"
+                        },
+                    """.trimIndent()
+                        mqDefs += mqDef
+                    }
+
                     else -> {}
                 }
             }
@@ -101,7 +116,7 @@ data class DispatchGithubActionRequestDto(
                 request.sketchId,
                 "sketch_name",
                 request.pluginInstallationInformation["Region"].asText(),
-                ec2Defs, ebDefs, rdsDefs, cacheDefs
+                ec2Defs, ebDefs, rdsDefs, cacheDefs, mqDefs
             )
 
             val authStr = when (pluginId) {
@@ -149,6 +164,11 @@ data class DispatchGithubActionRequestDto(
             # Cache
             cache_def = [
                 ${tfVar.cacheDef}
+            ]
+            
+            # MQ
+            mq_def = [
+                ${tfVar.mqDef}
             ]
             
         """.trimIndent()
