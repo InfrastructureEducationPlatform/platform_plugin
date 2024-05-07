@@ -13,7 +13,7 @@ data class DeploymentOutputRequestDto(
         val rdsOutputs: List<RdsOutput>,
         @JsonProperty("cache_outputs")
         val cacheOutputs: List<InternalCacheOutput>,
-        @JsonProperty("cache_outputs")
+        @JsonProperty("mq_outputs")
         val mqOutputs: List<InternalMqOutput>,
         @JsonProperty("deployment_log_id")
         val deploymentLogId: String,
