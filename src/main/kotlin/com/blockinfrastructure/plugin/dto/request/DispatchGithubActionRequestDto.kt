@@ -64,6 +64,7 @@ data class DispatchGithubActionRequestDto(
                                 container_port  = "${block.webServerFeatures!!.containerMetadata.containerPort}"
                             },
                             db_ref = "${request.blockList.find { it.type == "database" && it.id == block.webServerFeatures!!.connectionMetadata.dbRef }?.name ?: ""}"
+                            cache_ref = "${request.blockList.find { it.type == "cache" && it.id == block.webServerFeatures!!.connectionMetadata.cacheRef }?.name ?: ""}"
                         },
                     """.trimIndent()
                         ebDefs += ebDef

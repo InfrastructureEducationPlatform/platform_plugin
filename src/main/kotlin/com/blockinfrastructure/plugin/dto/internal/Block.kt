@@ -97,7 +97,8 @@ data class ContainerMetadata(
 )
 
 data class ContainerConnectionInformation(
-        val dbRef: String
+        val dbRef: String,
+        val cacheRef: String
 )
 
 data class DatabaseFeatures(
