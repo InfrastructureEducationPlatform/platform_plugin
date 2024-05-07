@@ -65,6 +65,7 @@ data class DispatchGithubActionRequestDto(
                             },
                             db_ref = "${request.blockList.find { it.type == "database" && it.id == block.webServerFeatures!!.connectionMetadata.dbRef }?.name ?: ""}"
                             cache_ref = "${request.blockList.find { it.type == "cache" && it.id == block.webServerFeatures!!.connectionMetadata.cacheRef }?.name ?: ""}"
+                            mq_ref = "${request.blockList.find { it.type == "mq" && it.id == block.webServerFeatures!!.connectionMetadata.mqRef }?.name ?: ""}"
                         },
                     """.trimIndent()
                         ebDefs += ebDef
