@@ -135,7 +135,7 @@ data class DispatchGithubActionRequestDto(
 
             val tfvarStr = tfvarToStr(tfvar, authStr)
 
-            return ClientPayload(request.sketchId, tfvarStr)
+            return ClientPayload(deploymentId, request.sketchId, tfvarStr)
         }
 
         private fun tfvarToStr(tfVar: TfVar, authStr: String): String {
@@ -181,6 +181,9 @@ data class DispatchGithubActionRequestDto(
 }
 
 data class ClientPayload(
+    @JsonProperty("deployment_id")
+    val deploymentId: String,
+
     @JsonProperty("sketch_id")
     val sketchId: String,
     @JsonProperty("tfvars_content")
