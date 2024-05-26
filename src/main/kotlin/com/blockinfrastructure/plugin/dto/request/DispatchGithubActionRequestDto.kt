@@ -40,7 +40,7 @@ data class DispatchGithubActionRequestDto(
                         {
                             block_id = "${block.id}",
                             name     = "${block.name}",
-                            ami      = "ami-0f3a440bbcff3d043",
+                            ami      = "${block.virtualMachineFeatures!!.osType}",
                             tier     = "${block.virtualMachineFeatures!!.tier}"
                         },
                     """.trimIndent()
