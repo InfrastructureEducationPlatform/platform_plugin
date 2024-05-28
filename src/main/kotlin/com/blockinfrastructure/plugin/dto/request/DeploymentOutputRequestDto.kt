@@ -32,7 +32,7 @@ data class DeploymentOutputRequestDto(
         }
         for (eb in ebOutputs) {
             val blockOutput = BlockOutput(eb.blockId, "webServer",
-                    null, WebServerOutput(eb.appName, eb.fqdn), null, null, null)
+                    null, WebServerOutput(eb.appName, eb.fqdn, eb.instanceTier), null, null, null)
             blockOutputList.add(blockOutput)
         }
         for (rds in rdsOutputs) {
@@ -78,7 +78,9 @@ data class EbOutput(
         @JsonProperty("app_name")
         val appName: String,
         @JsonProperty("fqdn")
-        val fqdn: String
+        val fqdn: String,
+        @JsonProperty("actual_instance_tier")
+        val instanceTier: String
 )
 
 

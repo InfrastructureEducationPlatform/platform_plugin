@@ -33,7 +33,8 @@ data class WebServerOutput(
         @Schema(description = "웹 서버 어플리케이션 이름")
         val appName: String,
         @Schema(description = "웹 서버 주소")
-        val publicFQDN: String
+        val publicFQDN: String,
+        val instanceTier: String
 )
 
 data class DatabaseOutput(

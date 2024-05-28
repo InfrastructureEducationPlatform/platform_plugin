@@ -68,7 +68,7 @@ class WebApiService(
                     else appName.substring(0 until 36) + "-env"
 
             val endpoint: String = createEBEnvironment(envName, block.name, awsConfiguration, vpc)
-            val ebOutput = WebServerOutput(block.name, endpoint)
+            val ebOutput = WebServerOutput(block.name, endpoint, "")
 
             return BlockOutput(block.id, block.type, null, ebOutput, null, null, null)
         } catch (ex: ElasticBeanstalkException) {
