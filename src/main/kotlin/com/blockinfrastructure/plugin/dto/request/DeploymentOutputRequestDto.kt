@@ -27,7 +27,7 @@ data class DeploymentOutputRequestDto(
         val blockOutputList = ArrayList<BlockOutput>()
         for (ec2 in ec2Outputs) {
             val blockOutput = BlockOutput(ec2.blockId, "virtualMachine",
-                    VirtualMachineOutput(ec2.instanceId, ec2.ipAddress, ec2.sshKey), null, null, null, null)
+                    VirtualMachineOutput(ec2.instanceId, ec2.ipAddress, ec2.sshKey, ec2.instanceTier), null, null, null, null)
             blockOutputList.add(blockOutput)
         }
         for (eb in ebOutputs) {
@@ -67,7 +67,9 @@ data class EC2Output(
         @JsonProperty("ip_address")
         val ipAddress: String,
         @JsonProperty("ssh_key")
-        val sshKey: String
+        val sshKey: String,
+    @JsonProperty("actual_instance_tier")
+    val instanceTier: String
 )
 
 data class EbOutput(

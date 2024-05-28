@@ -24,7 +24,8 @@ data class VirtualMachineOutput(
         @Schema(description = "VM 인스턴스 ip")
         val ipAddress: String,
         @Schema(description = "VM 인스턴스 ssh 키")
-        val sshPrivateKey: String
+        val sshPrivateKey: String,
+        val instanceTier: String
 )
 
 
